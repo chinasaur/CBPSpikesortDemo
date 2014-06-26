@@ -1,13 +1,14 @@
-function whitedatastruct = ...
-    PreprocessTrace(datastruct, params, varargin)
-% Preprocess a extracellularly recorded voltage trace by estimating noise
+function whitedatastruct = PreprocessTrace(datastruct, params)
+% Preprocess extracellularly recorded voltage trace by estimating noise
 % and whitening if desired.
 % FIXME: Appears to clip rawdata
 % FIXME: In process cleaning up
-opts = inputParser();
-opts.addParamValue('plot', true);
-opts.parse(varargin{:});
-opts = opts.Results;
+
+%% NO longer used (previously used opts.plot instead of gen_pars.plot_diagnostics)
+%opts = inputParser();
+%opts.addParamValue('plot', true);
+%opts.parse(varargin{:});
+%opts = opts.Results;
 
 gen_pars = params.general;
 white_pars = params.whitening;
@@ -24,13 +25,13 @@ if isempty(min_zone_len)
 end
 
 
-% Standardization
+% Standardization [EPS: moved to FilterData]
 
 % Remove CHANNEL-WISE means
-data = data - repmat(mean(data, 2), 1, size(data, 2));
+%data = data - repmat(mean(data, 2), 1, size(data, 2));
 
 % Scale GLOBALLY across all channels
-data = data ./ max(abs(data(:)));
+%data = data ./ max(abs(data(:)));
 
 
 
@@ -44,7 +45,7 @@ noise_zone_idx = GetNoiseZones(data_rms, ...
                                gen_pars.noise_threshold, ...
                                min_zone_len);
 
-if (opts.plot)
+if (gen_pars.plot_diagnostics)
     PlotNoiseDbn(noise_zone_idx, data);
 end
 
@@ -54,7 +55,7 @@ end
                     noise_zone_idx, ...
                     white_pars.num_acf_lags, ...
                     white_pars.reg_const, ...
-                    opts.plot);
+                    gen_pars.plot_diagnostics);
 noise_sigma = 1;
 fprintf('noise_sigma=%f\n', noise_sigma);
 
@@ -77,7 +78,7 @@ end
 dt = datastruct.dt;
 font_size = 16;
 nchan = size(data_whitened, 1);
-if (opts.plot)
+if (gen_pars.plot_diagnostics)
     figure(2); clf;
     plot_len = 5e3;
     middle_idx = ceil(size(data, 2) / 2) + (-plot_len : plot_len);
@@ -105,7 +106,7 @@ end
 
 
 % Visualization of whitening effects
-if (opts.plot)
+if (gen_pars.plot_diagnostics)
     figure(3);        
     nr = ceil(sqrt(nchan));    
     tax = (0 : dt : (length(old_acfs{1}) - 1) * dt)' .* 1e3;

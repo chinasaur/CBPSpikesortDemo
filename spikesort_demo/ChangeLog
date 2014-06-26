@@ -1,0 +1,18 @@
+2014-06-12  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* cbp_spikesort_demo_script:
+	- rewrote comments to describe algorithm steps
+	- added diagnotistic figures
+	- added comments indicating what to verify in plots, and how to adjust parameters if needed
+	- added plots of Fourier magnitudes
+	
+	* load_default_parameters:
+	- added general.plot_diagnostics
+
+	* preproc/PreprocessTrace:
+	- moved mean subtraction, and global rescaling operations into FilterDatam
+	- got rid of optional argument parsing for handling plot options, and used params.general.plot_diagnostics instead 
+
+	* preproc/FilterData
+	- pad_size -> pad
+	- freq_range -> freq

@@ -1,0 +1,35 @@
+%% -----------------------------------------------------------------
+COSMETIC:
+
+* unify underscores and capitalization in naming!
+
+* add a firstFigNum parameter, and display figures starting with this number (useful for comparing results with two different sets of parameters).
+
+%% -----------------------------------------------------------------
+SMALL IMPROVEMENTS:
+
+* thresholds should be relative to MEAN amplitudes over electrodes, not SUM.
+
+* Consistency of thresholding test for spikes/noise: why are these all different?
+   - whitening section uses cross-channel norm for determining noise chunks
+   - clustering uses joint channel-time norm for grabbing spike segments
+   - CBP chunking done using yet another windowed norm
+  EITHER explain why their different (and use separate parameters), or make them the same! 
+
+* threshold for choosing snippets for clustering is currently 4*std(data_magnitude) ???
+  where did this come from?
+
+* num_waveforms should be a general parameter, not in clustering
+
+* data file should include a t0 (time of initial sample) and all times should be relative to that
+
+* filtering.pad should be set to max of order and waveform_len
+
+* filtering lags should be corrected, so time axis is not shifted!!
+
+%% -----------------------------------------------------------------
+BIG IMPROVEMENTS:
+
+%% -----------------------------------------------------------------
+MAJOR MODIFICATIONS:
+

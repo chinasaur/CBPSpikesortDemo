@@ -2,16 +2,18 @@ function params = load_default_parameters()
 
 general.waveform_len    = 81;
 general.noise_threshold = 0.15;
+general.plot_diagnostics = true;
 
 filtering.freq  = [];          % Low/high cutoff in Hz, empty default means no filtering
 filtering.type  = 'fir1';      % "fir1", "butter"
 filtering.pad   = 5e3;         % padding (in samples) to avoid border effects
-filtering.order = 50;          % Harris 2000
+filtering.order = 50;          % See Harris 2000
 
 whitening.p_norm       = 2;   % Sliding-window Lp-norm is computed and thresholded
 whitening.num_acf_lags = 120; % # lags for which to est. ACF
 whitening.reg_const    = 0;   % Regularization const for making the ACF PSD
-whitening.min_zone_len = [];  % Empty means calculate based on general.waveform_len
+whitening.min_zone_len = [];  % Minimum duration of a noise zone
+                              % used for covariance estimation. Empty => general.waveform_len/2
 
 clustering.num_waveforms    = 3;    % Number of clusters
 clustering.percent_variance = 90;   % criteria for choosing # of PCs to retain
