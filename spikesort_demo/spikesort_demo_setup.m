@@ -1,6 +1,6 @@
 function spikesort_demo_setup(ssdpath)
 addpath(genpath(ssdpath))
-addpath(fullfile(ssdpath, '../example_data/'));
+%addpath(fullfile(ssdpath, '../example_data/'));
 javaaddpath(fullfile(ssdpath, 'cbp/utils/parforProgress/'));
 
 % Setup matlabpool for parfor if available and no pool open already

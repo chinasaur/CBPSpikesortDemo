@@ -45,13 +45,13 @@ raw_data(:, end - npad + 1 : end) = ...
 % Filter trace
 function data = FilterTrace(raw_data, filt_pars, rate)
 if (isempty(filt_pars.freq))
-    data = raw_data;
-    return;
+  data = raw_data;
+  return;
 end
 % Preprocessing parameters (see Harris et al 2000)
 Wn = filt_pars.freq  / rate;
 
-if (filt_pars.freq(2) >= rate)
+if ((length(Wn)==1) || (Wn(2) >= 1))
     switch(filt_pars.type)
         case 'butter'
             [fb, fa] = butter(filt_pars.order, Wn(1), 'high');

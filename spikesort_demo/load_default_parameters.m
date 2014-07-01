@@ -4,7 +4,7 @@ general.waveform_len    = 81;
 general.noise_threshold = 0.15;
 general.plot_diagnostics = true;
 
-filtering.freq  = [];          % Low/high cutoff in Hz, empty default means no filtering
+filtering.freq  = [100];       % Low/high cutoff in Hz, empty default means no filtering
 filtering.type  = 'fir1';      % "fir1", "butter"
 filtering.pad   = 5e3;         % padding (in samples) to avoid border effects
 filtering.order = 50;          % See Harris 2000

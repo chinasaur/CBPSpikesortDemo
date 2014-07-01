@@ -5,10 +5,24 @@ COSMETIC:
 
 * add a firstFigNum parameter, and display figures starting with this number (useful for comparing results with two different sets of parameters).
 
-%% -----------------------------------------------------------------
-SMALL IMPROVEMENTS:
+* AmplitudeThredholdGUI:
+  - change timescales to msec, plot 0-20 msec ?
+  - how to exit?
+  - font sizes 
 
-* thresholds should be relative to MEAN amplitudes over electrodes, not SUM.
+* Clean up global variables
+
+%% -----------------------------------------------------------------
+SMALL CHANGES:
+
+* Fix display stuff in whitening:
+  - fig3: histogram of windowed 2-norm, with threshold 
+  - fig4: plot ACF of noise regions
+  - fig5: display cross-channel correlations, but only if more than one channel!
+  - fig6: noise distribution, compared with Gaussian and Laplacian
+  - fonts/line thicknesses
+
+* thresholds should be expressed relative to MEAN amplitudes over electrodes, not SUM.
 
 * Consistency of thresholding test for spikes/noise: why are these all different?
    - whitening section uses cross-channel norm for determining noise chunks
@@ -21,15 +35,23 @@ SMALL IMPROVEMENTS:
 
 * num_waveforms should be a general parameter, not in clustering
 
-* data file should include a t0 (time of initial sample) and all times should be relative to that
-
 * filtering.pad should be set to max of order and waveform_len
 
-* filtering lags should be corrected, so time axis is not shifted!!
+* visualization of CBP spikes in PC-space alongside clustering
 
 %% -----------------------------------------------------------------
-BIG IMPROVEMENTS:
+BIG CHANGES:
+
+* data file should include a t0 (time of initial sample) and all times should be relative to that
+
+* filtering lags should be corrected, so time axis is not shifted!! 
+
+* CBP Priors on firing rates (currently hard-coded) should be set based on clustering results
+
+* Handle noise distributions with other pnorms (stretched exponentials) 
+   [NOTE: easy with cvx package, but hard to do with ecos]
 
 %% -----------------------------------------------------------------
 MAJOR MODIFICATIONS:
 
+* Embed final thresholding step into iterations, using an operator-splitting method like ADMM

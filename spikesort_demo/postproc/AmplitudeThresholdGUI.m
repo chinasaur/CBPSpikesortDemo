@@ -3,7 +3,7 @@ opts = inputParser();
 opts.addParamValue('f', []);
 opts.addParamValue('thresh', []);
 opts.addParamValue('ampbins', 1e2);
-opts.addParamValue('fontsize', 16);
+%opts.addParamValue('fontsize', 16);
 opts.addParamValue('kdepoints', 32);
 opts.addParamValue('kderange', [0.3 1.1]);
 opts.addParamValue('kdewidth', 5);
@@ -56,8 +56,8 @@ for i = 1:n
     
     % Plot spike amplitude histogram
     hist(spikeamps{i}, opts.ampbins);
-    set(gca, 'FontSize', opts.fontsize);
-    title(sprintf('Waveform %d', i));
+%    set(gca, 'FontSize', opts.fontsize);
+    title(sprintf('Amplitudes, cell %d', i));
     xlim([0 max([spikeamps{i}(:); 1.5])]);
     
     % Plot threshold as vertical red lines.

@@ -1,31 +1,24 @@
-%% Test script for running CBP spike sorting algorithm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Test script, CBP spike sorting algorithm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Original code by Chaitanya Ekanadham, 12/26/2012
+% This script demonstrates a method for sorting neural spikes recorded on
+% one or more extracellular electrodes.  Unlike the commonly used
+% clustering methods, this can correctly recover temporally
+% overlapping spikes through use of a sparse inverse method known as
+% Continuous Basis Pursuit (CBP).  The spike sorting method is
+% described in this publication: 
+%
+%   A unified framework and method for automatic neural spike identification.
+%   C Ekanadham, D Tranchina, and E P Simoncelli. J. Neuroscience Methods, 
+%   vol. 222, pp. 47--55, Jan 2014. DOI: 10.1016/j.jneumeth.2013.10.001  
+%   Available at: http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Ekanadham13
+%
+% Original code written by Chaitanya Ekanadham, 12/26/2012
 % Lab for Computational Vision, NYU & HHMI
 % http://www.cns.nyu.edu/~lcv/
 %
 % Updated by Peter H. Li, fall/winter 2013
-%
-% This script demonstrates a method for sorting spikes recorded on
-% one or more extracellular electrodes.  Unlike the commonly used
-% clustering methods, this can correctly recover temporally
-% overlapping spikes by relying on a sparse inverse method known as
-% Continuous Basis Pursuit (CBP).
-%
-% The spike sorting method is described in this publication:
-%
-% A unified framework and method for automatic neural spike identification.
-% C Ekanadham, D Tranchina, and E P Simoncelli. J. Neuroscience Methods, 
-% vol. 222, pp. 47--55, Jan 2014 (Published online 21 Nov 2013).
-% doi: 10.1016/j.jneumeth.2013.10.001  
-% http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Ekanadham13
-%
-% and the Continuous Basis Pursuit method is described here:
-%
-% Recovery of sparse translation-invariant signals with continuous basis pursuit.
-% C Ekanadham, D Tranchina and E P Simoncelli. IEEE Trans. Signal Processing, 
-% vol.59, num.10, pp. 4735-4744, Oct 2011. doi:10.1109/TSP.2011.2160058
-% http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Ekanadham11
 
 %% -----------------------------------------------------------------
 % Setup
@@ -45,17 +38,16 @@ spikesort_demo_setup(pwd());
 %   data: channel x time matrix of voltage traces
 %   dt : the temporal sampling interval (in seconds)
 
-% Here are two example datasets.  There are additional options in the
+% Two example datasets.  There are additional options in the
 % example_data directory.
 switch 0 
     case 0
-        % Quiroga simulated data examples
+        % Quiroga simulated data example, single electrode
         data_filename = 'C_Easy1_noise015.mat';
         
     case 1
-        % Harris data example
-        %     data_filename = 'example_data/harris_d533101_v2.mat';
-        data_filename = 'harris_d533101.mat';
+        % Harris data example, tetrode + one ground-truth intracellular electrode
+        data_filename = 'harris_d533101_v2.mat';
 end
 
 % Load data
@@ -78,19 +70,31 @@ if (params.general.plot_diagnostics)
     Tstart = round((size(data.data,2)-plotDur)/2);
     inds = Tstart+[1:plotDur];
 
-    figure(1); clf; subplot(2,1,1); 
+    figure(1); clf; subplot(3,1,1); 
     plot([inds(1), inds(end)]*data.dt, [0 0], 'k'); 
     hold on; plot((inds-1)*data.dt, data.data(:,inds)'); hold off
     axis tight; xlabel('time (sec)');  ylabel('voltage'); 
     title(sprintf('Partial raw data, nChannels=%d, dt=%.2fmsec', size(data.data,1), 1000*data.dt));
 
-%**TODO: indicate filtering frequency range
-    figure(2); clf; subplot(2,1,1);
+    figure(2); clf; subplot(3,1,1);
     dftMag = abs(fft(data.data,[],2));
     if (size(dftMag,1) > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;
     maxDFTind = floor(size(data.data,2)/2);
-    semilogy(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
-    axis tight; xlabel('frequency (Hz)'); ylabel('amplitude');
+    maxDFTval = 1.1*max(dftMag(2:maxDFTind));
+    if (~isempty(params.filtering.freq))
+      yr = [min(dftMag(2:maxDFTind)), maxDFTval];
+      xr = [0 params.filtering.freq(1)]; 
+      patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], [1 0.3 0.3]);
+      if (length(params.filtering.freq) >  1)
+	xr = [params.filtering.freq(2) 1/(data.dt*2)];
+	patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], [1 0.3 0.3]);
+      end
+    end
+    hold on; 
+    plot(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
+    hold off;
+    axis tight; set(gca,'Ylim', [0 maxDFTval]);
+    xlabel('frequency (Hz)'); ylabel('amplitude');
     title('Fourier amplitude, averaged over channels');
 end
 
@@ -127,11 +131,9 @@ if (params.general.plot_diagnostics)
                                                       
     % Plot filtered data, indicating noise regions that will be used in next
     % step for estimation of noise covariance:
-    figure(1); subplot(2,1,2); 
-    col = [0.9 0.8 1];
-    hold on; 
-    zonesL = cellfun(@(c) c(1), noiseZones);
-    zonesR = cellfun(@(c) c(end), noiseZones);
+    figure(1); subplot(3,1,2);     hold on; 
+    col = [1 0.4 0.4];
+    zonesL = cellfun(@(c) c(1), noiseZones);  zonesR = cellfun(@(c) c(end), noiseZones);
     visibleInds = find(((inds(1) < zonesL) & (zonesL < inds(end))) |...
                        ((inds(1) < zonesR) & (zonesR < inds(end))));
     nh=fill(data.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
@@ -142,31 +144,36 @@ if (params.general.plot_diagnostics)
     hold off; 
     set(gca, 'Xlim', ([inds(1),inds(end)]-1)*data.dt);
     legend('noise regions');
-    title('Filtered data, with noise regions to be used for covariance estimation');
+    title('Filtered data, w/ regions to be used for noise covariance estimation');
 
-    figure(2); subplot(2,1,2);
+    figure(2); subplot(3,1,2);
     dftMag = abs(fft(filtdata.data,[],2));
     if (size(dftMag,1) > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;
-    semilogy(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
+    plot(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
     axis tight; xlabel('frequency (Hz)'); ylabel('amplitude');
     title('Fourier amplitude of filtered data');
     
-    % Plot histogram of magnitudes, indicating threshold
+    % Plot histogram of magnitudes, indicating threshold, and chi distribution
     figure(3); clf
-    [N,X] = hist(dataMag, 50);  bar(X,N);
+    [N,X] = hist(dataMag, 100); 
+    sd = sqrt(sum(cellfun(@(c) sum(dataMag(c).^2), noiseZones)) / ...
+	       sum(cellfun(@(c) length(c), noiseZones)));
+    chi = 2*(X/sd).*chi2pdf((X/sd).^2, size(filtdata.data,1));
+    plot(X,N); set(gca,'Yscale','log');
+    rg= get(gca, 'Ylim');
     hold on;
-    th= plot(params.general.noise_threshold*[1 1], [0 0.9*max(N)], 'r');
-    hold off;
-    legend(th, 'threshold'); 
-    xlabel('average voltage magnitude (all channels)'); 
-    title('Histogram of signal RMS amplitude');
-
-    %**TODO: overlay a chi2 distribution
-    
-    % At this point, all regions below threshold should look like noise. If
-    % not, may need to go back and lower the threshold, or modify the filtering 
-    % parameters.
+    th= plot(params.general.noise_threshold*[1 1], rg, 'r');
+    ch= plot(X, (max(N)/max(chi))*chi, 'g'); 
+    hold off; set(gca, 'Ylim', rg);
+    xlabel('voltage rms magnitude (over all channels)'); 
+    legend([th,ch], 'threshold', 'chi2');     title('Histogram of data amplitudes');
 end
+
+% Diagnostics:
+% Regions below threshold should look like background noise - they
+% will be used to estimate covariance structure of noise.  If spikes
+% appear to be included, go back and lower the threshold, or modify
+% the filtering parameters.
 
 %% -----------------------------------------------------------------
 % Preprocessing Step 2: Estimate noise covariance and whiten
@@ -192,13 +199,15 @@ end
 %                     is compared to this threshold (taken across 
 %                     electrodes).  
 
+params.general.plot_diagnostics=false;
 data_pp = PreprocessTrace(filtdata, params);
+params.general.plot_diagnostics=true;
 dataMag = sqrt(sum(data_pp.data .^ 2, 1));
 
-% If run with plot set to 'true', the figures should help to verify/adjust 
-% parameter settings: 
 %**TODO: these need to be clarified and better
 % aligned with the figures
+% If run with plot set to 'true', the figures should help to verify/adjust 
+% parameter settings: 
 %
 % 1. In Figure 2, red zones are those with L2-norm less than the noise
 % threshold, and should look like background activity.
@@ -226,7 +235,7 @@ dataMag = sqrt(sum(data_pp.data .^ 2, 1));
 %    changing the exponent accordingly (params.whitening.p_norm).
 
 if (params.general.plot_diagnostics)
-    thresh = mean(dataMag) + 3*std(dataMag);
+    thresh = mean(dataMag) + 3*std(dataMag);  %**TODO: check this
     
     peakInds = dataMag(inds)>thresh;  
     peakLen = params.clustering.peak_len;
@@ -236,8 +245,7 @@ if (params.general.plot_diagnostics)
     end
     peakInds = inds(peakInds);
 
-    % Plot, over-writing the filtered data
-    figure(1); subplot(2,1,2); cla
+    figure(1); subplot(3,1,3); cla
     col = [0.6 1 0.7];
     hold on;
     sh = patch(data.dt*[[1;1]*(peakInds-peakLen); [1;1]*(peakInds+peakLen)], ...
@@ -245,37 +253,34 @@ if (params.general.plot_diagnostics)
     plot((inds-1)*data.dt, data_pp.data(:,inds)');
     hold off
     axis tight
-    title('Filtered & whitened voltage traces')
+    title('Filtered & noise-whitened voltage traces')
     legend('Segments containing potential spikes');
     
-    figure(2); subplot(2,1,2);
+    figure(2); subplot(3,1,3);
     dftMag = abs(fft(data_pp.data,[],2));
     if (size(dftMag,1) > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;
-    semilogy(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
+    plot(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
     axis tight; xlabel('frequency (Hz)'); ylabel('amplitude');
-    title('Fourier amplitude of filtered & whitened data');
+    title('Fourier amplitude of filtered & noise-whitened data');
     
     %**TODO: Replace with higher level wrapping call taking just data and
     % params.general
     wndata    = windowed_norm(data.data,    params.general.waveform_len);
     wndata_pp = windowed_norm(data_pp.data, params.general.waveform_len);
-    figure(3);
-    subplot(1,2,1);
+    figure(3);  subplot(1,2,1);
     hist(wndata', 100);
     title('Windowed 2-Norm of original data');
     subplot(1,2,2);
-    [N,X] = hist(wndata_pp', 100);   bar(X,N);
-    hold on;
-    plot(thresh*[1 1], [0 0.9*max(N)], 'r');
-    hold off;
-
-    title('Windowed 2-Norm of filtered and whitened data');
+    hist(wndata_pp', 100); rg=get(gca,'Ylim');
+    hold on; plot(thresh*[1 1], rg, 'g'); hold off;
+    title('Windowed 2-Norm of filtered and noise-whitened data');
     clear wndata wndata_pp;
-
-% At this point, potential spikes should be identified, and background 
-% activity should look like univariate white noise.
 end
 
+% Diagnostics:
+% At this point, most segments contatining potential spikes should be identified, and background 
+% activity should look like univariate white noise, uncorrelated
+% over time, and across channels.
 
 %% -----------------------------------------------------------------
 % Preprocessing step 3: Estimate initial spike waveforms
@@ -298,9 +303,9 @@ end
 %                threshold. These segments are then aligned based on this
 %                parameter. Supported values are:
 %                   maxrms : align wrt max L2 norm (RMS) value in segment
-%                   maxabs : "" "" max L1 norm value in segment
+%                   maxabs : align wrt max L1 norm value in segment
 %                   max : max signed sum across electrodes
-%                   min : min "" "" "" 
+%                   min : min signed sum across electrodes
 %
 %                For example, if the spike waveforms always have large
 %                positive (negative) peaks, use max (min).
@@ -324,12 +329,13 @@ spike_times_cl = GetSpikeTimesFromAssignments(snippet_centers_cl, assignments);
 % not, may need to adjust num_waveforms and re-run the clustering to 
 % identify more/fewer cells.
 
-% May also wish to adjust the waveform_len, increasing it if it seems the
+% May also wish to adjust the waveform_len, increasing it if the
 % waveforms are being chopped off, or shortening it if there is a
 % substantial boundary region of silence.  If you do this, you need to go
-% back and re-run the fil
+% back and re-run starting from the filtering step.
 
-%% Step 4: chop signal into chunks for improved efficiency of CBP
+%% -----------------------------------------------------------------
+% Preprocessing Step 4: chop signal into chunks for improved efficiency of CBP
 
 % Partition data into snippets, separated by "noise zones" in which
 % the RMS of the waveforms does not surpass "threshold" for at least
@@ -372,12 +378,15 @@ wnsnip = cellfun(@(s) windowed_norm(s', params.general.waveform_len), snippets, 
 wnbreak = windowed_norm(cell2mat(breaks')', params.general.waveform_len);
 figure();
 subplot(1,2,1);
-hist(cell2mat(wnsnip')', 100);
+[N,X] = hist(cell2mat(wnsnip')', 100);
+bar(X,N);
 title('Windowed 2-Norm of snippets');
 subplot(1,2,2);
-hist(wnbreak', 100);
+hist(wnbreak', X);
 title('Windowed 2-Norm of putative silences')
 
+% Diagnostics:
+% ***TODO***
 
 %% -----------------------------------------------------------------
 % CBP setup
@@ -414,8 +423,6 @@ for i = 1 : num_waveforms
 end 
 
 % cbp_pars are parameters for doing sparse inference.
-% ADD : incorporate estimates of prior firing rates from clustering result
-% ADD : pnorm of noise (determined above)
 cbp_pars = struct ( ...
     'noise_sigma',  data_pp.noise_sigma, ... % Optimization parameters
     'firing_rates', 1e-3 .* ones(num_waveforms, 1), ... % prior firing rate
@@ -486,62 +493,26 @@ cbp_pars.progress = true; % Set false if having Java errors from progress bar
                  cbp_pars);
 toc(starttime);
 
-% Postprocess params
-% TODO: Just make this a default value, either 30 or 40 inside relevant
-% functions.  But first have to decide whether to try to reshift spike
-% times to remove consistent bias; tricky as depends on how ground truth is
-% defined, e.g. simulation versus intracellular electrode.
-spike_location_slack = 30; % For live updating ground truth feedback
-
 %% -----------------------------------------------------------------
 % Pick amplitude thresholds and visualize effect on ACorr/XCorr
 % NB: Much faster if mex trialevents.c is compiled
 
-% Clustering XCorr and ACorr plots
-% Optional
-% spike_times_cl = GetSpikeTimesFromAssignments(snippet_centers_cl, assignments);
-% f = figure();
-% % ACorrs
-% for i = 1:NUM_WAVEFORMS
-%     subplot(NUM_WAVEFORMS, NUM_WAVEFORMS, sub2ind([NUM_WAVEFORMS NUM_WAVEFORMS], i, NUM_WAVEFORMS));
-%     psthacorr(spike_times_cl{i}.*dt)
-% end
-% 
-% % XCorrs
-% for i = 1:NUM_WAVEFORMS
-%     for j = i+1 : NUM_WAVEFORMS
-%         subplot(NUM_WAVEFORMS, NUM_WAVEFORMS, sub2ind([NUM_WAVEFORMS NUM_WAVEFORMS], j, i));
-%         psthxcorr(spike_times_cl{i}.*dt, spike_times_cl{j}.*dt)
-%     end
-% end
+% Allow this much slack in time bins of spike locations, for live updating ground truth feedback
+% TODO: Just make this a default value, either 30 or 40 inside relevant
+% functions.  But first have to decide whether to try to reshift spike
+% times to remove consistent bias; tricky as depends on how ground truth is
+% defined, e.g. simulation versus intracellular electrode.
+spike_location_slack = 30; 
 
-
-% True spike XCorr and ACorr plots (TST defined after load_data above)
-% Optional
-% ntruth = length(true_sp);
-% figure();
-% % ACorrs
-% for i = 1:ntruth
-%     sp = true_sp{i};
-%     if isempty(sp), continue; end
-%     
-%     subplot(ntruth, ntruth, sub2ind([ntruth ntruth], i, ntruth));
-%     psthacorr(sp.*dt)
-% end
-% % XCorrs
-% for i = 1:ntruth
-%     spi = true_sp{i};
-%     if isempty(spi), continue; end
-% 
-%     for j = i+1 : ntruth
-%         spj = true_sp{j};
-%         if isempty(spj), continue; end
-% 
-%         subplot(ntruth, ntruth, sub2ind([ntruth ntruth], j, i));
-%         psthxcorr(spi.*dt, spj.*dt)
-%     end
-% end
-
+% Interactive GUI to select final thresholds for spike detection.  Top
+% row of Figure 9 shows the distribution of amplitudes for each
+% waveform (normalized, average spike has amplitude 1).  Bottom row
+% shows the spike-conditioned raster for each cell, used to
+% check for refractory violations.  Middle rows show spike-conditioned
+% rasters across pairs of cells, and is used to check for dropped
+% synchronous spikes (very common with clustering methods).
+% You can adjust the thresholds by dragging red lines for each cell
+% independently. Quit by typing *****.
 [atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, 'location_slack', spike_location_slack);
 
 %% -----------------------------------------------------------------
@@ -718,9 +689,3 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
     fprintf('  CBP %s', SortingEvaluationStr(ground_truth.true_sp, prune_est_times, total_misses, total_false_positives));
     
 end
-
-
-%% -----------------------------------------------------------------
-% Things to add
-
-% * visualization of CBP spikes in PC-space alongside clustering
