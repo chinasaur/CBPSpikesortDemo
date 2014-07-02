@@ -2,23 +2,7 @@
 %%% Test script, CBP spike sorting algorithm
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% This script demonstrates a method for sorting neural spikes recorded on
-% one or more extracellular electrodes.  Unlike the commonly used
-% clustering methods, this can correctly recover temporally
-% overlapping spikes through use of a sparse inverse method known as
-% Continuous Basis Pursuit (CBP).  The spike sorting method is
-% described in this publication: 
-%
-%   A unified framework and method for automatic neural spike identification.
-%   C Ekanadham, D Tranchina, and E P Simoncelli. J. Neuroscience Methods, 
-%   vol. 222, pp. 47--55, Jan 2014. DOI: 10.1016/j.jneumeth.2013.10.001  
-%   Available at: http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Ekanadham13
-%
-% Original code written by Chaitanya Ekanadham, 12/26/2012
-% Lab for Computational Vision, NYU & HHMI
-% http://www.cns.nyu.edu/~lcv/
-%
-% Updated by Peter H. Li, fall/winter 2013
+% Please see the file README.md for a description of this code.
 
 %% -----------------------------------------------------------------
 % Setup
@@ -42,15 +26,16 @@ spikesort_demo_setup(pwd());
 % example_data directory.
 switch 0 
     case 0
-        % Quiroga simulated data example, single electrode
-        data_filename = 'C_Easy1_noise015.mat';
-        
+       % Simulated data: single electrode.
+       % From: ***INCLUDE CITATION***
+       data_filename = 'C_Easy1_noise015.mat';
+
     case 1
-        % Harris data example, tetrode + one ground-truth intracellular electrode
+        % Real data: tetrode + one ground-truth intracellular electrode
+        % From: ***INCLUDE CITATION***
         data_filename = 'harris_d533101_v2.mat';
 end
 
-% Load data
 data = load(data_filename, 'data', 'dt');
 data.filename = data_filename;
 clear data_filename;
@@ -58,10 +43,9 @@ if (data.dt > 1/8000)
     warning('Sampling rate is less than recommended minimum of 8kHz');
 end
 
-% Load global default parameters
 params = load_default_parameters();
 
-% Adjust to specific values appropriate for the current data set:
+% Adjust some parameter values to be appropriate for the current data set:
 [data, params] = load_data_defaults(data, params);
 
 % Plot a bit of raw data, to make sure it looks as expected:

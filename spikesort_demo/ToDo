@@ -1,5 +1,5 @@
 %% -----------------------------------------------------------------
-COSMETIC:
+SMALL STUFF:
 
 * unify underscores and capitalization in naming!
 
@@ -11,9 +11,6 @@ COSMETIC:
   - font sizes 
 
 * Clean up global variables
-
-%% -----------------------------------------------------------------
-SMALL CHANGES:
 
 * Fix display stuff in whitening:
   - fig3: histogram of windowed 2-norm, with threshold 
@@ -39,19 +36,23 @@ SMALL CHANGES:
 
 * visualization of CBP spikes in PC-space alongside clustering
 
+* Set default filtering to frequency ranges of typical spike waveforms.  
+
 %% -----------------------------------------------------------------
 BIG CHANGES:
 
-* data file should include a t0 (time of initial sample) and all times should be relative to that
-
-* filtering lags should be corrected, so time axis is not shifted!! 
+* Data file should include a t0 (time of initial sample) and all times should be relative to that
+  This requires computing/correcting filtering lags
 
 * CBP Priors on firing rates (currently hard-coded) should be set based on clustering results
 
 * Handle noise distributions with other pnorms (stretched exponentials) 
    [NOTE: easy with cvx package, but hard to do with ecos]
 
+
 %% -----------------------------------------------------------------
 MAJOR MODIFICATIONS:
 
 * Embed final thresholding step into iterations, using an operator-splitting method like ADMM
+
+* Automatic thredhold settings based on: noise level, prior on firing rate, minimum amplitude (relative to typical amplitude), and relative cost of Misses vs. False Alarms.
