@@ -1,7 +1,11 @@
 %% -----------------------------------------------------------------
 SMALL STUFF:
 
-* unify underscores and capitalization in naming!
+* cosmetic: unify underscores and capitalization in naming!
+
+* Clean up global variables
+
+* move contents of main subfolder into main folder ?
 
 * add a firstFigNum parameter, and display figures starting with this number (useful for comparing results with two different sets of parameters).
 
@@ -10,14 +14,14 @@ SMALL STUFF:
   - how to exit?
   - font sizes 
 
-* Clean up global variables
-
 * Fix display stuff in whitening:
   - fig3: histogram of windowed 2-norm, with threshold 
   - fig4: plot ACF of noise regions
   - fig5: display cross-channel correlations, but only if more than one channel!
   - fig6: noise distribution, compared with Gaussian and Laplacian
   - fonts/line thicknesses
+
+* display in clustering: time in msec, legend
 
 * thresholds should be expressed relative to MEAN amplitudes over electrodes, not SUM.
 
@@ -38,6 +42,8 @@ SMALL STUFF:
 
 * Set default filtering to frequency ranges of typical spike waveforms.  
 
+* show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) of clustering results
+
 %% -----------------------------------------------------------------
 BIG CHANGES:
 
@@ -49,6 +55,7 @@ BIG CHANGES:
 * Handle noise distributions with other pnorms (stretched exponentials) 
    [NOTE: easy with cvx package, but hard to do with ecos]
 
+* Allow user to increase number of cells, and choose a starting waveform by clicking on the PC plot?
 
 %% -----------------------------------------------------------------
 MAJOR MODIFICATIONS:

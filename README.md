@@ -4,8 +4,8 @@
 
 This package contains demonstration code for sorting/estimating spikes
 of neurons recorded on one or more extracellular electrodes.  Unlike
-the commonly used clustering methods, this method can correctly
-recover temporally overlapping spikes through use of a sparse inverse
+commonly used clustering methods, this method can correctly recover
+temporally overlapping spikes through use of a sparse inverse
 algorithm known as Continuous Basis Pursuit (CBP).  The method is
 described in this publication:
 
@@ -14,18 +14,22 @@ described in this publication:
    vol. 222, pp. 47--55, Jan 2014. DOI: 10.1016/j.jneumeth.2013.10.001
    Available at: http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Ekanadham13            
 
-Conceptualization and algorithm design by Chaitanya Ekanadham and Eero Simoncelli.
-Original code written by Chaitanya Ekanadham, 12/26/2012
-Updated by Peter H. Li, Fall/Winter 2013
-Available at http://www.cns.nyu.edu/~lcv/software.php
+- Conceptualization and algorithm design by Chaitanya Ekanadham and Eero Simoncelli.
+- Original matlab code written by Chaitanya Ekanadham, 12/26/2012.
+- Rewritten to use ECOS, and interface updated by Peter H. Li, Fall/Winter 2013.
+- Current version is available at http://www.cns.nyu.edu/~lcv/software.php
 
 For optimization, the code relies on the Embedded Conic Solver (ECOS)
-package, an interior-point solver for second-order cone programming,
+package, an interior-point algorithm for second-order cone programming,
 written by A. Domahidi, E. Chu, and S. Boyd.  See
     http://web.stanford.edu/~boyd/papers/ecos.html
 For convenience, this package is included in the ecos subFolder.
 
--------------------------------------------------------------------------------------
+We also include two example datasets with ground truth (correct spike
+times), as obtained from these sites:
+*** INCLUDE URLS ***
+
+=====================================================================================
 OUTLINE OF METHOD:
 
 (0) Load raw data, in an array containing electrode voltages over
@@ -36,9 +40,9 @@ frequency noise, increasing the signal-to-noise ratio of the data, and
 allowing crude initial spike finding by thresholding.
 
 (2) Estimate covariance of background noise, and whiten the data
-according to this covariance.  The method is based on an objective
+according to this covariance.  The CBP method is based on an objective
 function that is most easily and efficiently computed when the
-background noise is white.
+background noise is white.  
 
 (3) Obtain initial estimates of spike waveforms.  For this, we use a
 simple k-means clustering method.  Note: this NOT used to
@@ -51,3 +55,4 @@ algorithm.
 (5) Use CBP to estimate spike times associated with each waveform.
 
 (6) Re-estimate waveforms.  If desired, repeat from step (5). 
+=====================================================================================
