@@ -15,7 +15,7 @@ function [datastruct, params] = load_raw_data(identifier, params)
 switch identifier
     case 'Quiroga1'
         fprintf(1,'Loading Quiroga dataset 1...\n');
-        filename = 'C_Easy1_noise015.mat';
+        filename = '../example_data/C_Easy1_noise015.mat';
         datastruct = load(filename, 'data', 'dt');
         datastruct.polarity = 'max';
   
@@ -23,7 +23,7 @@ switch identifier
 
     case 'Harris1'
         fprintf(1,'Loading Harris dataset 1...\n');
-        filename = 'harris_d533101_v2.mat';
+        filename = '../example_data/harris_d533101_v2.mat';
         datastruct = load(filename, 'data', 'dt');
    
         datastruct.polarity = 'min';

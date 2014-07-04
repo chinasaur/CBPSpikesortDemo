@@ -85,3 +85,5 @@ MAJOR ALGORITHM MODIFICATIONS:
 
 * Use an operator-splitting optimization method (e.g., ADMM) to embed
   the final thresholding step into the iterative process.
+
+* Incremental method 

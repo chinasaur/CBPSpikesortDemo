@@ -152,6 +152,7 @@ if (params.general.plot_diagnostics)
     xlabel('voltage rms magnitude (over all channels)'); 
     legend([dh, ch], 'noise', 'fitted chi2');
     title('Histogram of magnitudes');
+    clear dataMag dftMag
 end
 
 % Diagnostics for filtering: 
@@ -234,6 +235,7 @@ if (params.general.plot_diagnostics)
     hold off; set(gca, 'Ylim', yrg); 
     title('Histogram of magnitudes of filtered & noise-whitened data');
     legend([dh, ch], 'putative spikes', 'fitted chi2');
+    clear dataMag dftMag
 end    
 
 % Diagnostics for noise-whitening:
@@ -322,6 +324,7 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 % NOTE: This is for computational speedup only, so choose a  
 % conservative (low) threshold to avoid missing spikes!
 
+%**TODO: move into load_default_parameters
 data_rms = sqrt(sum(data_pp.data .^ 2, 1));% root-mean-squared across electrodes
 %cluster_threshold = 4 * median(data_rms) ./ 0.6745; % robust
 %threshold = 4 * std(data_rms);
@@ -378,11 +381,11 @@ end
 %% -----------------------------------------------------------------
 % CBP setup
 
-% At this point, we're done with preprocessing, so close figures
+% Close all preprocessing-related figures
 figNums = params.plotting.first_fig_num+[0:5];
 close(figNums(ishghandle(figNums)));
 
-%**TODO: move default params into a file, as for preprocessing.
+%**TODO: move default params into load_default_parameters
 % Should be able to leave most of these defaults
 num_waveforms = params.general.num_waveforms;
 
@@ -428,7 +431,7 @@ cbp_pars = struct ( ...
     'num_features', num_waveforms ... % number of "cells"
 );
 
-%% -----------------------------------------------------------------
+% -----------------------------------------------------------------
 % CBP parameters that should be adjusted by user
 
 % For picking template delta
@@ -443,7 +446,7 @@ cbp_pars.greedy_p_value = 0; % tolerance to accept greedy soln
 % For speedup only; set to 0 to disable
 cbp_pars.prefilter_threshold = 0; %0.01, ... 
 
-%% -----------------------------------------------------------------
+% -----------------------------------------------------------------
 % Pick solver and reweighting parameters
 
 % Setup CVX if needed
@@ -510,6 +513,9 @@ spike_location_slack = 30;
 % by closing the figure window.
 [atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, 'location_slack', spike_location_slack);
 
+%**TODO: after closing window, replot full auto and cross- corrlations with
+%finalized threshold choices.
+
 %% -----------------------------------------------------------------
 % Histogram of windowed norm for data, whitened data, residual
 
@@ -521,18 +527,20 @@ wnsnip = cellfun(@(s) windowed_norm(s', params.general.waveform_len), snippets, 
 wnbreak = windowed_norm(cell2mat(breaks')', params.general.waveform_len);
 wnresid = cellfun(@(s) windowed_norm(s', params.general.waveform_len), data_recon, 'UniformOutput', false);
 
-%%**TODO: change to lot superimposed
-figure();
-sanesubplot(1, 3, {1 1});
-hist(cell2mat(wnsnip')', 100);
-title('Windowed 2-Norm of snippets')
-sanesubplot(1, 3, {1 2});
-hist(wnbreak', 100);
-title('Windowed 2-Norm of putative silences')
-sanesubplot(1, 3, {1 3});
-hist(cell2mat(wnresid')', 100);
-title('Windowed 2-Norm of snippet residuals after CBP')
-
+if (params.general.plot_diagnostics)
+    figure(params.plotting.first_fig_num);
+    [N,X] = hist(cell2mat(wnsnip')', 100);
+    Nbreak = hist(wnbreak', X);
+    Nresid = hist(cell2mat(wnresid')', X);
+    bar(X,N); set(gca,'Yscale','log');
+    hold on;
+    plot(X,Nbreak,'r','LineWidth', 2);
+    plot(X,Nresid, 'g', 'LineWidth', 2);
+    hold off;
+    legend('snippets', 'silences', 'snippet post-CBP residuals');
+    title('Histogram of windowed 2-norms');
+end
+    
 % Diagnostics: ***TODO***: if residual contains regions with norm too
 % large, increase cbp_pars.firing_rates, and re-run CBP.
 
@@ -548,24 +556,26 @@ for i = 1:numel(spike_times)
     waveforms{i} = CalcSTA(data_pp.data', sts, [-nlrpoints nlrpoints]);
 end
 
-% Show diff with initial estimates
-figure();
-nc = ceil(sqrt(num_waveforms));
-nr = ceil(num_waveforms / nc);
-for i = 1:numel(waveforms)
-    subplot(nr, nc, i);
-    inith = plot(cbp_outer_pars.init_features{i}, 'b');
-    hold on
-    finalh = plot(waveforms{i}, 'r');
+% Compare updated waveforms to initial estimates
+if (params.general.plot_diagnostics)
+    figure(params.plotting.first_fig_num+1);
+    nc = ceil(sqrt(num_waveforms));
+    nr = ceil(num_waveforms / nc);
+    for i = 1:numel(waveforms)
+        subplot(nr, nc, i);
+        inith = plot(cbp_outer_pars.init_features{i}, 'b');
+        hold on
+        finalh = plot(waveforms{i}, 'r');
 
-    err = norm(cbp_outer_pars.init_features{i} - waveforms{i});
-    title(sprintf('Norm of diff over norm of final: %.2f', ...
-        err / norm(waveforms{i})));
-	legend([inith(1) finalh(1)], {'Initial', 'Final'});
+        err = norm(cbp_outer_pars.init_features{i} - waveforms{i})/...
+              norm(waveforms{i});
+        title(sprintf('Waveform %d, Rel error=%.2f', i, err))
+        legend([inith(1) finalh(1)], {'Initial', 'New'});
+    end
 end
 
 % Diagnostics: if recovered waveforms differ significantly from initial
-% waveforms, execute:
+% waveforms, execute this:
 %      cbp_outer_pars.init_features = waveforms
 % and re-run CBP
 
@@ -591,7 +601,7 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
         ground_truth.true_sp, spike_times_cl, ground_truth.spike_location_slack);
 end
 
-%% -----------------------------------------------------------------
+% -----------------------------------------------------------------
 % Plot various snippet subpopulations
 [est_matches true_matches] = GreedyMatchTimes(spike_times, ground_truth.true_sp, ground_truth.spike_location_slack);
 
