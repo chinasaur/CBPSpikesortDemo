@@ -1,9 +1,9 @@
 =====================================================================================
-  CBPSpikesortDemo
+||  CBPSpikesortDemo 
 =====================================================================================
 
-This package contains demonstration code for sorting/estimating spikes
-of neurons recorded on one or more extracellular electrodes.  Unlike
+This package contains matlab code for sorting/estimating spikes of
+neurons recorded on one or more extracellular electrodes.  Unlike
 commonly used clustering methods, this method can correctly recover
 temporally overlapping spikes through use of a sparse inverse
 algorithm known as Continuous Basis Pursuit (CBP).  The method is
@@ -29,6 +29,10 @@ We also include two example datasets with ground truth (correct spike
 times), as obtained from these sites:
 *** INCLUDE URLS ***
 
+To get started, we suggest you work through the code in the demonstration script, 
+    spikesort_demo/cbp_spikesort_demo_script.m
+executing one section at a time.
+
 =====================================================================================
 OUTLINE OF METHOD:
 
@@ -49,10 +53,10 @@ simple k-means clustering method.  Note: this NOT used to
 identify/estimate spikes - it is only used for waveform estimation.
 
 (4) Partition data into chunks, separated by spike-free intervals.
-This is optional: it is only done to improve efficiency of the
+ This is optional: it is only done to improve efficiency of the
 algorithm.
 
 (5) Use CBP to estimate spike times associated with each waveform.
 
-(6) Re-estimate waveforms.  If desired, repeat from step (5). 
+(6) Re-estimate waveforms.  If changes are substantial, repeat from step (5). 
 =====================================================================================

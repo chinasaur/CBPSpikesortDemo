@@ -14,7 +14,7 @@ if (~exist('marker', 'var'))
 end
 
 N = max(assignments);
-figure(fig1); hold on;
+figure(fig1); clf;  hold on;
 colors = hsv(N);
 counts = zeros(N, 1);
 for i = 1 : N    
@@ -23,19 +23,28 @@ for i = 1 : N
     plot(XProj(idx, 1), ...
          XProj(idx, 2), ...
          '.', 'Color', colors(i, :), ...
-         'MarkerSize', 10, ...
+         'MarkerSize', 8, ...
          'Marker', marker);
      
 end
-font_size = 16;
+font_size = 12;
 set(gca, 'FontSize', font_size);
 xlabel('PC 1');
 ylabel('PC 2');
-title(sprintf('Clustering result (nclusters=%d)', N));
+title(sprintf('Clustering result (%d clusters)', N));
 xl = get(gca, 'XLim');
 yl = get(gca, 'YLim');
 plot([0 0], yl, '-', 'Color', 0.8 .* [1 1 1]);
 plot(xl, [0 0], '-', 'Color', 0.8 .* [1 1 1]);
+th=linspace(0, 2*pi, 64);
+dof = 2;
+chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
+chiVR = dof - chiMean^2;
+rad= chiMean + 4*sqrt(chiVR); 
+nh= plot(rad*sin(th),rad*cos(th), 'k');
+legend(nh,'noise, 3.9 stdevs');
+axis equal
+hold off
 
 if (nargin < 3)
     return;
@@ -71,7 +80,7 @@ for i = 1 : N
     for j = 1 : nchan
         idx = offset + 1 : offset + wlen; 
         h(j) = plot(centroids(idx, i), ...
-                    'Color', colors(i, :), 'LineWidth', 3);
+                    'Color', colors(i, :), 'LineWidth', 2);
         lg_labels{j} = sprintf('channel %d', j);                       
         offset = offset + wlen;
     end
@@ -80,9 +89,10 @@ for i = 1 : N
     set(gca, 'FontSize', font_size);
     xlabel('time (samples)');
     title(sprintf('Waveform %d: %d spikes', i, counts(i)));
-    if (i == 1)
+    if ((i == 1) && (nchan > 1.5))
         l = legend(h, lg_labels);
         set(l, 'FontSize', font_size);
     end
+    hold off
 end
 

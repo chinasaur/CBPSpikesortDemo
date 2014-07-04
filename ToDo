@@ -1,0 +1,87 @@
+%% -----------------------------------------------------------------
+INTERFACE/COSMETIC CHANGES:
+
+* cosmetic: unify underscores and capitalization in naming!
+
+* Clean up global variables
+
+* add figure size and position parameters to params.plotting
+* add scroll bars to data plots
+
+* AmplitudeThresholdGUI:
+  - change timescales to msec, plot 0-20 msec ?
+  - clicking escape key should exit, choosing the automatic values
+
+* VisualizeClustering
+  - display of waveforms/traces for multi-electrodes is confusing
+  - should give time in msec, not samples
+
+* thresholds should be expressed relative to MEAN amplitudes over electrodes, not SUM.
+
+* filtering.pad should be set to max of order and waveform_len
+
+* Set default filtering to frequency ranges of typical spike waveforms.  
+
+* show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) of clustering results
+
+* after clustering or CBP run, give options to:
+  merge cells (average two waveforms, reduce num_waveforms)
+  split cells (specify new centroids graphically, increase num_waveforms)
+    
+* show noise distribution after whitening, not before (in PreProcessTrace)
+   reasoning: need to whiten regardless of marginal distribution, so the only thing that's relevant is the post-whitening distribution
+
+* Put stats in ground truth comparison figures (preserved if we try again with different params)
+
+%% -----------------------------------------------------------------
+SMALL ALGORITHMIC CHANGES:
+
+* Consistency of thresholding test for spikes/noise: 
+   - filtering globally rescales data so that max(abs) is 1.
+   - whitening section compares cross-channel norm (CCN) to noise_threshold to find noise regions
+   - clustering section compares 4*std(CCN) to grab spike segments - prefer chiMean+4*sqrt(chiVR).
+   - CBP chunking section 
+  EITHER explain why these are different (and use separate parameters), or make them the same! 
+
+* thresholding:  should it be done based on windowed L2 norm?
+    dof= size(data_pp.data,1);  % params of a chi-distribution
+    mn = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
+    sd = dof - mn^2;
+    thresh = mn + sd
+   
+* snippets for clustering should be chosen based on max across
+  electrodes of windowed norm.  Windowed norm more robust than peak,
+  and max because some cells may show up on a small subset of
+  electrodes.  To do this, previous (filtering) step needs to get
+  noise variance constant on electrodes.
+
+* Preprocessing step 4 - Partitioning (snippets):
+  choose partion_pars.threshold based on sliding Lp-norm.
+  The threshold should be the minimum window Lp-norm containing any overlap
+  of any pair of waveforms. Display a histogram of sliding Lp-norms with
+  this automated choice for the user.
+
+
+* Data file should include a t0 (time of initial sample) and all times
+  should be relative to that! This requires computing/correcting
+  filtering lags.  
+
+* CBP Priors on firing rates (currently hard-coded) should be set
+  based on clustering results
+
+* Handle noise distributions with other pnorms (stretched
+   exponentials) [NOTE: easy with cvx package, but hard to do with
+   ecos]
+
+%% -----------------------------------------------------------------
+MAJOR ALGORITHM MODIFICATIONS:
+
+* Spike intervals are currently identified for noise covariance
+  estimation by thresholding the cross-channel norm.  For larger
+  numbers of electrodes, it would be better to compute something like
+  max (or Lp-norm for p large) over the L2 norm of localized subgroups
+  of electrodes.  Basically, matched filtering, assuming cells show up
+  on subsets of electrodes, and the noise is whitened. 
+
+* Use an operator-splitting optimization method (e.g., ADMM) to embed
+  the final thresholding step into the iterative process.

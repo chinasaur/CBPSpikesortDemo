@@ -27,7 +27,11 @@ data_rms = sqrt(sum(data .^ 2, 1));
 
 % Clustering parameters
 %threshold = 4 * median(data_rms) ./ 0.6745; % robust
-threshold = 4 * std(data_rms);
+%threshold = 4 * std(data_rms);  %** Don't know where this came from
+dof = size(data,1);
+chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
+chiVR = dof - chiMean^2;
+threshold = chiMean + 4*sqrt(chiVR); 
 
 % Identify time indices of candidate peaks.
 peak_idx = FindPeaks(data_rms(:), threshold, pars);
@@ -39,7 +43,7 @@ X = ConstructSnippetMatrix(data, peak_idx, pars);
 [PCs, XProj] = TruncatePCs(X, pars.percent_variance);
 
 % Do K-means clustering
-assignments = DoKMeans(XProj, pars.num_waveforms);
+assignments = DoKMeans(XProj, gen_pars.num_waveforms);
 centroids = GetCentroids(X, assignments);
 
 % Put them in a canonical order (according to increasing 2norm);
@@ -103,7 +107,7 @@ distance_mode = 'sqEuclidean';
 start_mode = 'sample'; % centroid initialization = random sample
 empty_mode = 'error'; % throw error when clusters are empty
 opts = statset('MaxIter', 1e3);
-% Run K-means
+% Run K-means, from stat toolbox
 assignments = kmeans(Xproj, nwaveforms,...
     'Replicates', num_reps, ...
     'Distance', distance_mode, ...

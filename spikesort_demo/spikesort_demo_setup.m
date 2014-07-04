@@ -5,7 +5,12 @@ javaaddpath(fullfile(ssdpath, 'cbp/utils/parforProgress/'));
 
 % Setup matlabpool for parfor if available and no pool open already
 if exist('matlabpool', 'file') && matlabpool('size') == 0
+  try
     matlabpool open
+  catch me
+    warning('Failed to open parallel sessions using matlabpool:\n  %s\n',...
+        me.message);
+  end
 end
 
 % Check installation

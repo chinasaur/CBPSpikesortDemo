@@ -1,0 +1,77 @@
+2014-07-03  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/spikesort_demo_setup.m: 
+	error-protected the call to matlabpool, so that it now just gives
+	a warning.
+
+	* spikesort_demo/preproc/PreprocessTrace.m (noise_zone_idx): 
+	noise_threshold parameter moved from general to whitening section.
+
+	* spikesort_demo/load_raw_data.m: 
+	- re-organized loading of data files and specialization of
+	parameters.  Now it's all done in this single function, which
+	replaces load_data_defaults.m
+
+	* spikesort_demo/load_default_parameters.m: 
+	added plotting.first_fig_num, and changed all display code to use
+          	figure numbers offset from this number
+	default fontsize changed to 12
+	num_waveforms parameter moved from clustering to general section
+
+	* spikesort_demo/preproc/plotting/VisualizeClustering.m (nh): 
+	plot noise ball
+
+	* spikesort_demo/preproc/EstimateInitialWaveforms.m (threshold): 
+	>>> changed threshold for choosing segments for clustering  to 
+	mean + 4*std of a chi distribution (about 3.9)
+
+	* ToDo and ChangeLog:  moved to main directory
+	* spikesort_demo/preproc/PreprocessTrace.m (nchan): 
+	only plot cross-corr  for multi-channel recordings
+	Display: fig3: histogram of norms, with threshold
+                      fig4: ACF of noise regions
+                      fig5: cross-channel correlations, but only if more than one channel!
+                      fig6: noise distribution, compared with Gaussian and Laplacian
+	
+2014-07-02  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+		
+	* cbp_spikesort_demo_script.m: 
+	- moved top-level description text into README.md file. Added ecos
+   	   citation, and  brief outline of algorithm.
+	- fixed bug: reweight_exp - this used to be hardcoded to three
+	   entries
+	- further cleanup in plotting of histograms of filtered data
+
+2014-07-01  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* load_data_defaults.m: 
+	-added 200Hz cutoff to Quiroga dataset
+
+	* cbp_spikesort_demo_script.m (dataMag): 
+	- indicate filtering cutoffs in frequency plot
+	- plot chi2 distribution for comparison to data magnitude
+
+	* preproc/FilterData.m (Wn): allow params.filtering.freq to have a
+	single entry (low-freq cutoff) for a high-pass filter.
+
+2014-06-19  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* preproc/PreprocessTrace:
+	- moved mean subtraction, and global rescaling operations into FilterData.m
+	- got rid of optional argument parsing for handling plot options, and used params.general.plot_diagnostics instead 
+	
+	
+2014-06-12  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* cbp_spikesort_demo_script:
+	- rewrote comments to describe algorithm steps
+	- added diagnotistic figures for filtering / whitening
+	- added plots of Fourier magnitudes
+	- added comments indicating what to verify in plots, and how to adjust parameters if needed
+	
+	* load_default_parameters:
+	- added general.plot_diagnostics
+
+	* preproc/FilterData
+	- pad_size -> pad
+	- freq_range -> freq

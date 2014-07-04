@@ -42,11 +42,11 @@ data_rms = sqrt(sum(data .^ 2, 1));
 
 % Estimate noise zones
 noise_zone_idx = GetNoiseZones(data_rms, ...
-                               gen_pars.noise_threshold, ...
+                               white_pars.noise_threshold, ...
                                min_zone_len);
 
 if (gen_pars.plot_diagnostics)
-    PlotNoiseDbn(noise_zone_idx, data);
+    PlotNoiseDbn(noise_zone_idx, data, params.plotting.first_fig_num+5, params.plotting.font_size);
 end
 
 % Whiten trace if desired
@@ -76,9 +76,10 @@ end
 
 % Visualization of noise zone estimation
 dt = datastruct.dt;
-font_size = 16;
+font_size = params.plotting.font_size;
 nchan = size(data_whitened, 1);
-if (gen_pars.plot_diagnostics)
+
+if (0) 
     figure(2); clf;
     plot_len = 5e3;
     middle_idx = ceil(size(data, 2) / 2) + (-plot_len : plot_len);
@@ -91,14 +92,14 @@ if (gen_pars.plot_diagnostics)
             h(2) = plot(sub_xax, data_rms(noise_zone_idx{comp}), 'r-');
         end
     end
-    plot([xax(1) xax(end)], gen_pars.noise_threshold * [1 1], 'Color', 0.8 * [1 1 1]);
+    plot([xax(1) xax(end)], white_pars.noise_threshold * [1 1], 'Color', 0.8 * [1 1 1]);
     xlim([xax(1) xax(end)]);
     ylim([0 max(abs(data_rms))]);
     set(gca, 'FontSize', font_size);
     xlabel('time (ms)');
     ylabel('RMS of trace');
     title(sprintf('Estimation of noise zones (thres=%0.3f)', ...
-          gen_pars.noise_threshold));
+          white_pars.noise_threshold));
     lg = legend(h, {'est. signal', 'est. noise'});
     set(lg, 'FontSize', font_size);
 end
@@ -107,32 +108,35 @@ end
 
 % Visualization of whitening effects
 if (gen_pars.plot_diagnostics)
-    figure(3);        
+    figure(params.plotting.first_fig_num+3); clf
     nr = ceil(sqrt(nchan));    
     tax = (0 : dt : (length(old_acfs{1}) - 1) * dt)' .* 1e3;
     for chan = 1 : nchan
         subplot(nr, nr, chan);        
         plot(tax, [old_acfs{chan}, whitened_acfs{chan}], ...
-              '.-', 'LineWidth', 2, 'MarkerSize', 20);        
+              '.-', 'LineWidth', 1, 'MarkerSize', 14);        
         set(gca, 'FontSize', font_size);
         xlabel('time lag (ms)');
-        ylabel('correlation');
+        ylabel('autocorrelation');
         legend('original', 'whitened');
         hold on; plot([tax(1), tax(end)], [0 0], 'k-');
         title(sprintf('Channel %d', chan));
     end
-    figure(4);
-	subplot(1, 2, 1), imagesc(old_cov);
-    set(gca, 'FontSize', font_size); title('Orig. spatial covariance');
-    xlabel('channel');
-    ylabel('channel');
-    set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
-    subplot(1, 2, 2), imagesc(whitened_cov);
-    set(gca, 'FontSize', font_size);
-    xlabel('channel');
-    title('Whitened spatial covariance');    
-    set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
-    
+    if (nchan > 1.5)
+      figure(params.plotting.first_fig_num+4); clf
+      subplot(1, 2, 1), imagesc(old_cov); 
+      colormap(gray); axis equal; axis tight;
+      set(gca, 'FontSize', font_size); 
+      title('Orig. cross-channel covariance');
+      xlabel('channel');    ylabel('channel');
+      set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
+      subplot(1, 2, 2), imagesc(whitened_cov); 
+      colormap(gray); axis equal; axis tight;
+      set(gca, 'FontSize', font_size);
+      xlabel('channel');
+      title('Whitened cross-channel covariance');    
+      set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
+    end
 end
 
 
@@ -145,7 +149,7 @@ whitedatastruct.processing{end+1} = log;
 
 %% Whitening routines
 
-function PlotNoiseDbn(noise_zone_idx, data)
+function PlotNoiseDbn(noise_zone_idx, data, fignum, font_size)
 
 noise_samples = zeros(numel(data), 1);
 offset = 0;
@@ -168,21 +172,20 @@ beta_hat = noise_sigma ./ sqrt(2);
 laplace_ll = -sum(log(2 * beta_hat)) - ...
              sum(mean(abs(noise_samples), 1)' ./ beta_hat);
 
-figure(142), clf;
+figure(fignum), clf;
 min_val = quantile(noise_samples, 0);
 max_val = quantile(noise_samples, 1);
 x = linspace(min_val, max_val, 1e2)';
 h = histc(noise_samples(:), x);
 h = h./(sum(h))./ mean(diff(x));
-plot(x, h, '.-', 'LineWidth', 2); set(gca, 'YScale', 'log');
-xlim([x(1) x(end)]);
-hold on;
 plot(x, 1 / (2 * beta_hat) * exp(-abs(x) ./ beta_hat), 'g', ...
      'LineWidth', 2);
+xlim([x(1) x(end)]);
+hold on;
 plot(x, normpdf(x, 0, noise_sigma), 'r', 'LineWidth', 2);
-font_size = 16;
+plot(x, h, '.'); set(gca, 'YScale', 'log');
 set(gca, 'FontSize', font_size);
 title(sprintf('Noise dbn (GaussLL=%0.3f LaplaceLL=%0.3f', ...
       gauss_ll, laplace_ll));
-l = legend('empirical', 'laplacian', 'gaussian');
+l = legend('laplacian', 'gaussian', 'data');
 set(l, 'FontSize', font_size, 'Location', 'SouthWest');
