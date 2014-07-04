@@ -81,7 +81,7 @@ end
 % Plot initial ACorr/XCorrs
 for i = 1:n
     plotACorr(threshspiketimes, i);
-    if(i==1), xlabel('time (msec)');
+%    if(i==1), xlabel('time (sec)'); end;
     for j = (i+1):n
         plotXCorr(threshspiketimes, i, j);
     end
