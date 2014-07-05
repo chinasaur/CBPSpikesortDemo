@@ -542,7 +542,7 @@ if (params.general.plot_diagnostics)
     plot(X,Nbreak,'r','LineWidth', 2);
     plot(X,Nresid, 'g', 'LineWidth', 2);
     hold off;
-    legend('snippets', 'silences', 'snippet post-CBP residuals');
+    legend('all snippets', 'silences', 'snippet post-CBP residuals');
     title('Histogram of windowed 2-norms');
 end
     
