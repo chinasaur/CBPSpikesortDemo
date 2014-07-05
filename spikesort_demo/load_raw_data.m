@@ -19,7 +19,7 @@ switch identifier
         datastruct = load(filename, 'data', 'dt');
         datastruct.polarity = 'max';
   
-        params.filtering.freq = [100];  % Low freq cutoff in Hz    
+        params.filtering.freq = [];  % Low freq cutoff in Hz    
 
     case 'Harris1'
         fprintf(1,'Loading Harris dataset 1...\n');

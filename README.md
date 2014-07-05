@@ -12,26 +12,29 @@ described in this publication:
    A unified framework and method for automatic neural spike identification.
    C Ekanadham, D Tranchina, and E P Simoncelli. J. Neuroscience Methods,
    vol. 222, pp. 47--55, Jan 2014. DOI: 10.1016/j.jneumeth.2013.10.001
-   Available at: http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Ekanadham13            
+   http://www.cns.nyu.edu/~lcv/pubs/makeAbs.php?loc=Ekanadham13            
 
-- Conceptualization and algorithm design by Chaitanya Ekanadham and Eero Simoncelli.
+- Conceptualization and design by Chaitanya Ekanadham and Eero Simoncelli.
 - Original matlab code written by Chaitanya Ekanadham, 12/26/2012.
 - Rewritten to use ECOS, and interface updated by Peter H. Li, Fall/Winter 2013.
-- Current version is available at http://www.cns.nyu.edu/~lcv/software.php
+- Current version available at http://www.cns.nyu.edu/~lcv/software.php
 
-For optimization, the code relies on the Embedded Conic Solver (ECOS)
+For optimization, the code uses the Embedded Conic Solver (ECOS)
 package, an interior-point algorithm for second-order cone programming,
-written by A. Domahidi, E. Chu, and S. Boyd.  See
-    http://web.stanford.edu/~boyd/papers/ecos.html
-For convenience, this package is included in the ecos subFolder.
+written by A. Domahidi, E. Chu, and S. Boyd.  
+    See http://web.stanford.edu/~boyd/papers/ecos.html
+For convenience, this package is included in the ecos subDirectory.
 
 We also include two example datasets with ground truth (correct spike
 times), as obtained from these sites:
-*** INCLUDE URLS ***
+*** INCLUDE URLS here ***
 
-To get started, we suggest you work through the code in the demonstration script, 
+TO GET STARTED: we suggest you work through the code in the demonstration script, 
     spikesort_demo/cbp_spikesort_demo_script.m
 executing one section at a time.
+
+This directory contains a ChangeLog documenting changes made to the
+code, as well as a ToDo list.
 
 =====================================================================================
 OUTLINE OF METHOD:

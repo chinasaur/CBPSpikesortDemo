@@ -1,13 +1,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Test script for CBP spike sorting
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
+
 % Please see the file README.md for a description of this code.
 
 %% -----------------------------------------------------------------
 % Setup
 
-% Set the current working directory to the demo directory:
+% Set the current working directory to the directory containing this file:
 % cd spikesort_demo
 
 % Run the setup function, which sets paths and prints warnings or errors if there
@@ -21,7 +21,7 @@ spikesort_demo_setup(pwd());
 % Load default parameter set
 params = load_default_parameters();
 
-% Load a default data set, which includes the raw data, the timestep, and 
+% Load an example data set, which includes the raw data, the timestep, and 
 % (optionally) ground truth spike times.
 switch 1 
     case 1
@@ -118,21 +118,21 @@ if (params.general.plot_diagnostics)
     noiseCol = [1 0.4 0.4];
     visibleInds = find(((inds(1) < zonesL) & (zonesL < inds(end))) |...
                        ((inds(1) < zonesR) & (zonesR < inds(end))));
-    nh=patch(data.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
+    nh=patch(filtdata.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
              thresh*[-1;1;1;-1]*ones(1,length(visibleInds)), noiseCol,...
              'EdgeColor', noiseCol);
     hold on; 
-    plot([inds(1), inds(end)]*data.dt, [0 0], 'k'); 
-    dh = plot((inds-1)*data.dt, filtdata.data(:,inds)');
+    plot([inds(1), inds(end)]*filtdata.dt, [0 0], 'k'); 
+    dh = plot((inds-1)*filtdata.dt, filtdata.data(:,inds)');
     hold off; 
-    set(gca, 'Xlim', ([inds(1),inds(end)]-1)*data.dt);
+    set(gca, 'Xlim', ([inds(1),inds(end)]-1)*filtdata.dt);
     set(gca,'Ylim',[-1 1]);  legend('noise regions, to be whitened');
     title('Filtered data, w/ regions to be used for noise covariance estimation');
 
     figure(params.plotting.first_fig_num+1); subplot(3,1,2);
     dftMag = abs(fft(filtdata.data,[],2));
     if (nchan > 1.5), dftMag = sqrt(sum(dftMag.^2)); end;
-    plot(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
+    plot(([1:maxDFTind]-1)/(maxDFTind*filtdata.dt*2), dftMag(1:maxDFTind));
     set(gca,'Yscale','log'); axis tight; 
     xlabel('frequency (Hz)'); ylabel('amplitude');
     title('Fourier amplitude of filtered data');
@@ -325,7 +325,7 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 % conservative (low) threshold to avoid missing spikes!
 
 %**TODO: move into load_default_parameters
-data_rms = sqrt(sum(data_pp.data .^ 2, 1));% root-mean-squared across electrodes
+data_rms = sqrt(sum(data_pp.data .^ 2, 1));% root-mean-squared across channels
 %cluster_threshold = 4 * median(data_rms) ./ 0.6745; % robust
 %threshold = 4 * std(data_rms);
 dof = size(data_pp.data,1);
