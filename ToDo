@@ -8,6 +8,9 @@ INTERFACE/COSMETIC CHANGES:
 * add figure size and position parameters to params.plotting
 * add scroll bars to data plots
 
+* Seems that matlabpool is being phased out, and parpool is taking its
+  place.  We need to update the code accordingly...
+
 ** in results, give PSTHs of spike counts, over some counting bin (e.g., 0.5 sec)
 
 * AmplitudeThresholdGUI:
