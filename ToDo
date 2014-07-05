@@ -1,12 +1,15 @@
 %% -----------------------------------------------------------------
 INTERFACE/COSMETIC CHANGES:
 
-* cosmetic: unify underscores and capitalization in naming!
+* cosmetic: unify underscores and capitalization in naming, at least
+  for top-level (user-called) functions and variables!
 
-* Clean up global variables
+* Clear global variables
 
 * add figure size and position parameters to params.plotting
 * add scroll bars to data plots
+
+* add to params.plotting: maxTracePlotLen, noiseCol, spikeCol
 
 * Seems that matlabpool is being phased out, and parpool is taking its
   place.  We need to update the code accordingly...
@@ -15,6 +18,7 @@ INTERFACE/COSMETIC CHANGES:
 
 * AmplitudeThresholdGUI:
   - give timescales in msec, not samples
+  - show total spike counts (and rate) for each cell. 
   - clicking escape key should exit, choosing the automatic values
   - if general.plot_diagnostics is false, should just choose auto values
 

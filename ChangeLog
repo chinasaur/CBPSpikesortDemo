@@ -1,12 +1,16 @@
 2014-07-05  Eero Simoncelli  <eero@elvira.cns.nyu.edu>
 
 	* spikesort_demo/load_raw_data.m: 
-	Changed default Quiroga filtering.freq back to [], to compare with Peter's results:
-	Spike counts: [1150;1187;1135]
-	Elapsed time is 71.133004 seconds.
-	Clust Misses=256/3477 (7.36 percent) FPs=4/3225 (0.12 percent)
-	CBP Misses=13/3477 (0.37 percent) FPs=2/3466 (0.06 percent)
+	Changed default Quiroga filtering.freq back to []
 
+	Current results on Quiroga dataset 1, with waveforms re-fit twice,
+	and threshold of cell 1 slightly hand-adjusted to eliminate
+	refractory violations:
+	Spike counts: [1921;1473;1138]
+	Clustering: Misses=241/3477 (6.93%) FPs=1531/4767 (32.12%)
+	       CBP: Misses=3/3477 (0.09%) FPs=2/3476 (0.06%)
+	
+	
 2014-07-03  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
 	* spikesort_demo/spikesort_demo_setup.m: 
@@ -84,3 +88,9 @@
 	* preproc/FilterData
 	- pad_size -> pad
 	- freq_range -> freq
+
+Peter's results on Quiroga data
+	Spike counts: [1150;1187;1135]
+	Elapsed time is 71.133004 seconds.
+	Clust Misses=256/3477 (7.36 percent) FPs=4/3225 (0.12 percent)
+	CBP Misses=13/3477 (0.37 percent) FPs=2/3466 (0.06 percent)
