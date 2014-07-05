@@ -19,6 +19,9 @@ INTERFACE/COSMETIC CHANGES:
   - display of waveforms/traces for multi-electrodes is confusing
   - give time in msec, not samples
 
+* Top-level function PreprocessTrace should be renamed WhitenTrace
+  (but there's already another function with that name).
+
 * show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) of clustering results?
 
 * after clustering or CBP run, give options to:
@@ -59,6 +62,9 @@ SMALL ALGORITHMIC CHANGES:
   small subset of electrodes (so max is better).  To do this for the
   whitening stage, previous (filtering) step needs to get noise
   variance constant on electrodes.
+
+* Consistency of waveform length?  Do we really need different
+  parameters in the whitening, clustering, and CBP sections?
 
 * filtering.pad shoudl be set automatically, and doesn't need to be a
   parameter.  Left side should be padded by filtering.order, and right

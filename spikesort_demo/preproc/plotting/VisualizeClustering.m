@@ -41,7 +41,7 @@ dof = 2;
 chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
 chiVR = dof - chiMean^2;
 rad= chiMean + 4*sqrt(chiVR); 
-nh= plot(rad*sin(th),rad*cos(th), 'k');
+nh= plot(rad*sin(th),rad*cos(th), 'k', 'LineWidth', 2);
 legend(nh,'noise, 3.9 stdevs');
 axis equal
 hold off

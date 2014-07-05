@@ -34,10 +34,6 @@ switch identifier
         error('Unrecognized dataset identifier', identifier);
 end
 
-if (datastruct.dt > 1/5000)
-    warning('Sampling rate is less than recommended minimum of 5kHz');
-end
-
 datastruct.filename = filename;
 datastruct.nchan = size(datastruct.data, 1);
 datastruct.nsamples = size(datastruct.data, 2);

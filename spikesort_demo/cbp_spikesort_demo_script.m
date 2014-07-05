@@ -35,6 +35,11 @@ switch 1
        [data, params] = load_raw_data('Harris1', params);
 end
 
+% Check that sampling rate is reasonable:
+if (datastruct.dt > 1/5000)
+    warning('Sampling rate is less than recommended minimum of 5kHz');
+end
+
 % Plot a bit of raw data, to make sure it looks as expected:
 if (params.general.plot_diagnostics)
     plotDur = min(2400,size(data.data,2));   %** magic number: should be a parameter
@@ -372,7 +377,7 @@ if (params.general.plot_diagnostics)
     snipLengths = cellfun(@(s) size(s,1), snippets);
     [N, X] = hist(snipLengths,100);
     bar(X,N); set(gca,'Yscale', 'log');
-    title('Histogram of partitioned segment lengths');
+    title('Histogram of partitioned segment durations');
 end
 
 % Diagnostics:
