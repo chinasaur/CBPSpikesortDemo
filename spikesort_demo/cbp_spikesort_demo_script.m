@@ -331,6 +331,7 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 data_rms = sqrt(sum(data_pp.data .^ 2, 1));% root-mean-squared across channels
 %cluster_threshold = 4 * median(data_rms) ./ 0.6745; % robust
 %threshold = 4 * std(data_rms);
+%*** Fix: make consistent with other choices  of threshold...
 dof = size(data_pp.data,1);
 chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
 chiVR = dof - chiMean^2;
@@ -533,12 +534,14 @@ if (params.general.plot_diagnostics)
     [N,X] = hist(cell2mat(wnsnip')', 100);
     Nbreak = hist(wnbreak', X);
     Nresid = hist(cell2mat(wnresid')', X);
-    bar(X,N); set(gca,'Yscale','log');
+    chi = 2*X.*chi2pdf(X.^2, nchan*params.general.waveform_len);
+    bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
     hold on;
-    plot(X,Nbreak,'r','LineWidth', 2);
-    plot(X,Nresid, 'g', 'LineWidth', 2);
-    hold off;
-    legend('all snippets', 'silences', 'snippet post-CBP residuals');
+    plot(X,(max(N)/max(chi))*chi, 'c','LineWidth', 2);
+    plot(X,(max(N)/max(Nbreak))*Nbreak,'r','LineWidth', 2);
+    plot(X,(max(N)/max(Nresid))*Nresid, 'g', 'LineWidth', 2);
+    hold off; set(gca,'Ylim', yrg);
+    legend('all snippets', 'expected (Chi)', 'silences', 'snippet post-CBP residuals');
     title('Histogram of windowed 2-norms');
 end
 
