@@ -35,7 +35,7 @@ threshold = chiMean + 8*sqrt(chiVR); %**Magic number!
 %*** SDT Solution: requires an estimate of the min amplitude to be detected, and the prior rate
 %ms = 10;   % min spike smplitude, in whitened space
 %pr = 1e-3;  %** PRIOR on firing rate
-%threshold = (log(1-pr)-log(pr) + ms^2)/(2*ms);  %SDT threshold, assuming univariate Gaussian noise
+%threshold = (log(1-pr)-log(pr) + ms^2/2)/ms;  %SDT threshold, assuming univariate Gaussian noise
 
 % Identify time indices of candidate peaks.
 peak_idx = FindPeaks(data_rms(:), threshold, pars);
@@ -47,7 +47,7 @@ X = ConstructSnippetMatrix(data, peak_idx, pars);
 [PCs, XProj] = TruncatePCs(X, pars.percent_variance);
 
 % Do K-means clustering
-assignments = DoKMeans(XProj, gen_pars.num_waveforms);
+assignments = DoKMeans(XProj, pars.num_waveforms);
 centroids = GetCentroids(X, assignments);
 
 % Put them in a canonical order (according to increasing 2norm);

@@ -1,3 +1,11 @@
+2014-07-06  Eero Simoncelli  <eero@elvira.cns.nyu.edu>
+
+	* spikesort_demo/load_default_parameters.m: 
+	- Moved num_waveforms back into clustering section (hadn't realized
+	there was a separate one for CBP!)
+
+	- Moved default partitioning parameters into here.
+
 2014-07-05  Eero Simoncelli  <eero@elvira.cns.nyu.edu>
 
 	* spikesort_demo/load_raw_data.m: 
