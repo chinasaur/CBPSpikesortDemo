@@ -28,6 +28,7 @@ INTERFACE/COSMETIC CHANGES:
   - give time in msec, not samples
   - show spike rates, in addition to total count
   - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
+  - Give SNR, or d':  expected SDT error rate, given univariate Gaussian noise
 
 * AmplitudeThresholdGUI:
   - give timescales in msec, not samples
