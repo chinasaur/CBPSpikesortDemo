@@ -77,7 +77,6 @@ if (params.general.plot_diagnostics)
     axis tight; set(gca,'Ylim', [0 maxDFTval]);  set(gca, 'Yscale','log');
     xlabel('frequency (Hz)'); ylabel('amplitude'); 
     title('Fourier amplitude, averaged over channels');
-    clear dftMag
 end
 
 %% -----------------------------------------------------------------
@@ -157,7 +156,6 @@ if (params.general.plot_diagnostics)
     xlabel('voltage rms magnitude (over all channels)'); 
     legend([dh, ch], 'noise', 'fitted chi2');
     title('Histogram of magnitudes');
-    clear dataMag dftMag
 end
 
 % Diagnostics for filtering: 
@@ -200,7 +198,8 @@ if (params.general.plot_diagnostics)
     nchan = size(filtdata.data,1);
     chiMean = sqrt(2)*gamma((nchan+1)/2)/gamma(nchan/2);
     chiVR = nchan - chiMean^2;
-    thresh = chiMean + 4*sqrt(chiVR); %used for finding putative spikes
+    thresh = chiMean + 6*sqrt(chiVR) %**Magic number - yuk!
+
     peakInds = dataMag(inds)> thresh;  
     peakLen = params.clustering.peak_len;
     if (isempty(peakLen)), peakLen=floor(params.general.waveform_len/2); end;
@@ -240,7 +239,6 @@ if (params.general.plot_diagnostics)
     hold off; set(gca, 'Ylim', yrg); 
     title('Histogram of magnitudes of filtered & noise-whitened data');
     legend([dh, ch], 'putative spikes', 'fitted chi2');
-    clear dataMag dftMag
 end    
 
 % Diagnostics for noise-whitening:

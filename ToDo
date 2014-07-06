@@ -67,15 +67,16 @@ SMALL ALGORITHMIC CHANGES:
 
 * clustering.percent_variance should be chosen automatically, based on estimated SNR.
 
-* Consistency of thresholding test for spikes/noise: 
+* Improve consistency of thresholding tests for spikes/noise: 
    X filtering globally rescales data so that max(abs) is 1.
    X whitening section compares cross-channel norm (CCN) to noise_threshold to find noise regions
-   - clustering section compares 4*std(CCN) to grab spike segments - prefer chiMean+4*sqrt(chiVR).
-     [should add a parameter, clustering.spike_threshold, for number of sds]
-   - CBP chunking section: another threshold?
+   - clustering section compares 4*std(CCN) to grab spike segments - where did this come from ??
+     [should add a parameter, clustering.spike_threshold, to control this ]
+   - CBP chunking section: uses another threshold?
+   - CBP computes aauto threshold based on firing rates, etc...
 
-* rethink thresholding: shouldn't it be done based on WINDOWED L2
-  norm?  Perhaps soft-max across electrodes of windowed norm?
+* Thresholding: shouldn't it be done based on TIME-WINDOWED L2 norm?
+  Or  soft-max across electrodes of the time-windowed norm?
   Windowed norm more robust than peak, and some cells may show up on a
   small subset of electrodes (so max is better).  To do this for the
   whitening stage, previous (filtering) step needs to get noise
