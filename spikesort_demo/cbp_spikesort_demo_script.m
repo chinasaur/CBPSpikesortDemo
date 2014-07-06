@@ -198,7 +198,7 @@ if (params.general.plot_diagnostics)
     nchan = size(filtdata.data,1);
     chiMean = sqrt(2)*gamma((nchan+1)/2)/gamma(nchan/2);
     chiVR = nchan - chiMean^2;
-    thresh = chiMean + 6*sqrt(chiVR) %**Magic number - yuk!
+    thresh = chiMean + 8*sqrt(chiVR) %**Magic number - yuk!
 
     peakInds = dataMag(inds)> thresh;  
     peakLen = params.clustering.peak_len;
@@ -335,7 +335,7 @@ data_rms = sqrt(sum(data_pp.data .^ 2, 1));% root-mean-squared across channels
 dof = size(data_pp.data,1);
 chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
 chiVR = dof - chiMean^2;
-threshold = chiMean + 3*sqrt(chiVR); 
+threshold = chiMean + 4*sqrt(chiVR); 
 
 partition_pars = struct('threshold', threshold, ...
                         'smooth_len', 1, ...
@@ -572,12 +572,13 @@ if (params.general.plot_diagnostics)
     figure(params.plotting.first_fig_num+1);
     nc = ceil(sqrt(num_waveforms));
     nr = ceil(num_waveforms / nc);
+
     for i = 1:numel(waveforms)
         subplot(nr, nc, i);
         inith = plot(cbp_outer_pars.init_features{i}, 'b');
         hold on
         finalh = plot(waveforms{i}, 'r');
-
+        hold off
         err = norm(cbp_outer_pars.init_features{i} - waveforms{i})/...
               norm(waveforms{i});
         title(sprintf('Waveform %d, Rel error=%.2f', i, err))
