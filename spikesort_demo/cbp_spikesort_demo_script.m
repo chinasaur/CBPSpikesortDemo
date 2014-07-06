@@ -36,7 +36,7 @@ switch 1
 end
 
 % Check that sampling rate is reasonable:
-if (datastruct.dt > 1/5000)
+if (data.dt > 1/5000)
     warning('Sampling rate is less than recommended minimum of 5kHz');
 end
 
@@ -329,7 +329,7 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 % NOTE: This is for computational speedup only, so choose a  
 % conservative (low) threshold to avoid missing spikes!
 
-%**TODO: move into load_default_parameters
+%**TODO: move these into load_default_parameters
 data_rms = sqrt(sum(data_pp.data .^ 2, 1));% root-mean-squared across channels
 %cluster_threshold = 4 * median(data_rms) ./ 0.6745; % robust
 %threshold = 4 * std(data_rms);
@@ -380,7 +380,7 @@ if (params.general.plot_diagnostics)
     title('Histogram of partitioned segment durations');
 end
 
-% Diagnostics:
+% Diagnostics for data partitioning: **TODO**
 % Shouldn't see any large-amplitude content in the noise gaps.
 
 %% -----------------------------------------------------------------
@@ -482,7 +482,7 @@ for i = 1 : num_waveforms
 end
 
 %% -----------------------------------------------------------------
-% Run CBP to estimate spike times of all cells
+% CBP step 1: use CBP to estimate spike times of all cells
 
 starttime = tic;
 cbp_pars.progress = true; % Set false if getting Java errors from progress bar
@@ -516,12 +516,10 @@ spike_location_slack = 30;
 % automatic values chosen.  You can adjust the
 % thresholds by dragging red lines for each cell independently. Quit
 % by closing the figure window.
+%***Why is slack parameter needed here?
 [atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, 'location_slack', spike_location_slack);
 
-%**TODO: after closing window, replot full auto and cross- corrlations with
-%finalized threshold choices.
-
-%% -----------------------------------------------------------------
+% -----------------------------------------------------------------
 % Histogram of windowed norm for data, whitened data, residual
 
 data_recon = cell(size(snippets));
@@ -545,12 +543,19 @@ if (params.general.plot_diagnostics)
     legend('all snippets', 'silences', 'snippet post-CBP residuals');
     title('Histogram of windowed 2-norms');
 end
+
+%**TODO: Plot [ do this for clustering also ]
+% for each cell: waveform, total spikes and spike rate, amplitude distribution with thredhold indicated, autocorrelationPSTH 
+% for each pair: cross-correlationPSTH, in time bins roughly the width of the main portion of the waveforms
+%    ( for easy discernment of synchrony artifacts).
     
-% Diagnostics: ***TODO***: if residual contains regions with norm too
-% large, increase cbp_pars.firing_rates, and re-run CBP.
+% Diagnostics for CBP spike-finding: ***TODO***
+% amplitudes should be around 1.  autocorr should show zeros spikes in refractory period (roughly *** msec)
+% crosscorr should not have a notch around zero (common in clustering methods)
+% Residual should not have high-amplitude regions (if it does, increase cbp_pars.firing_rates, and re-run CBP).
 
 %% -----------------------------------------------------------------
-% Re-estimate waveforms
+% CBP Step 2: re-estimate waveforms
 
 % Compute waveforms using regression, with interpolation (defaults to cubic spline)
 nlrpoints = (params.general.waveform_len-1)/2;
@@ -579,14 +584,16 @@ if (params.general.plot_diagnostics)
     end
 end
 
-% Diagnostics: if recovered waveforms differ significantly from initial
-% waveforms, execute this:
+% Diagnostics for waveforms: 
+%**TODO: Visualize spikes in PC space, compared to clustering result.  Allow user to increase/decrease 
+% number of waveforms.
+
+% if recovered waveforms differ significantly from initial waveforms, execute this and re-run CBP:
 %      cbp_outer_pars.init_features = waveforms
-% and re-run CBP
 
 
 %% -----------------------------------------------------------------
-% Compare to ground truth, if available
+% Post-analysis: Compare to ground truth, if available
 
 ground_truth = load(data_pp.filename, 'true_spike_times', 'true_spike_class', 'dt');
 ground_truth.filename = data_pp.filename;
@@ -604,6 +611,23 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
      ground_truth.true_spike_times, ... 
      ground_truth.true_spike_class] = ReorderCells( ...
         ground_truth.true_sp, spike_times_cl, ground_truth.spike_location_slack);
+end
+
+if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spike_class')
+  % Since we already permuted ground truth to match clustering, this is true by definition
+  best_ordering_cl = 1:length(spike_times_cl);
+  best_ordering = 1:length(spike_times);
+
+  % Evaluate clustering sorting
+  [total_misses_cl, total_false_positives_cl, misses_cl, false_positives_cl] = ...
+      evaluate_sorting(spike_times_cl, ground_truth.true_sp, ground_truth.spike_location_slack);
+  fprintf('Clustering: %s', SortingEvaluationStr(ground_truth.true_sp, spike_times_cl, total_misses_cl, total_false_positives_cl));
+
+  % Evaluate CBP sorting
+  [total_misses, total_false_positives, prune_est_times, misses, false_positives] = ...
+     EvaluateSorting(spike_times, spike_amps, ground_truth.true_sp, 'threshold', amp_threshold, 'location_slack', spike_location_slack);
+  fprintf('       CBP: %s', SortingEvaluationStr(ground_truth.true_sp, prune_est_times, total_misses, total_false_positives));
+
 end
 
 % -----------------------------------------------------------------
@@ -682,27 +706,3 @@ end
 % Get greedy spike matches and plot RoC-style
 % NB: Much faster if mex greedymatchtimes.c is compiled
 PlotCBPROC(spike_times, spike_amps, ground_truth.true_sp, ground_truth.spike_location_slack);
-
-
-%% -----------------------------------------------------------------
-% Evaluation (ONLY if ground truth is available)
-
-if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spike_class')
-    % Since we already permuted ground truth to match clustering, this is true
-    % by definition
-    best_ordering_cl = 1:length(spike_times_cl);
-    best_ordering = 1:length(spike_times);
-    
-    % Evaluate clustering sorting
-    [total_misses_cl, total_false_positives_cl, misses_cl, ...
-        false_positives_cl] = ...
-        evaluate_sorting(spike_times_cl, ground_truth.true_sp, ground_truth.spike_location_slack);
-    fprintf('Clustering: %s', SortingEvaluationStr(ground_truth.true_sp, spike_times_cl, total_misses_cl, total_false_positives_cl));
-    
-    % Evaluate CBP sorting
-    [total_misses, total_false_positives, prune_est_times, misses, ...
-        false_positives] = ...
-        EvaluateSorting(spike_times, spike_amps, ground_truth.true_sp, 'threshold', amp_threshold, 'location_slack', spike_location_slack);
-    fprintf('       CBP: %s', SortingEvaluationStr(ground_truth.true_sp, prune_est_times, total_misses, total_false_positives));
-    
-end

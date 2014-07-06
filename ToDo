@@ -14,7 +14,20 @@ INTERFACE/COSMETIC CHANGES:
 * Seems that matlabpool is being phased out, and parpool is taking its
   place.  We need to update the code accordingly...
 
-** in results, give PSTHs of spike counts, over some counting bin (e.g., 0.5 sec)
+* Top-level function PreprocessTrace should be renamed WhitenTrace
+  (but there's already another function with that name).
+    
+* In PreprocessTrace, show noise distribution after whitening, not
+   before. Reasoning: need to whiten regardless of marginal
+   distribution, so the only thing that's relevant is the
+   post-whitening distribution
+
+* VisualizeClustering
+  - display of waveforms/traces for multi-electrodes is confusing
+  - Show a black asterisk at the current waveforms (centroids)
+  - give time in msec, not samples
+  - show spike rates, in addition to total count
+  - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
 
 * AmplitudeThresholdGUI:
   - give timescales in msec, not samples
@@ -22,27 +35,24 @@ INTERFACE/COSMETIC CHANGES:
   - clicking escape key should exit, choosing the automatic values
   - if general.plot_diagnostics is false, should just choose auto values
 
-** VisualizeClustering
-  - display of waveforms/traces for multi-electrodes is confusing
-  - give time in msec, not samples
-
-* Top-level function PreprocessTrace should be renamed WhitenTrace
-  (but there's already another function with that name).
-
-* show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) of clustering results?
+* After running CBP, provide GUI to click on amplitude, auto or
+  cross-correlation and inspect the correpsonding data.  Specifically,
+  user should be able to examine unusually large or small amplitude
+  spikes, refractory violations, and synchrony artifacts.
 
 * after clustering or CBP run, give options to:
   merge cells (average two waveforms, reduce num_waveforms)
   split cells (specify new centroids graphically, increase num_waveforms)
   add a new (orthogonalized) random waveform
-    
-* In PreprocessTrace, show noise distribution after whitening, not
-   before. Reasoning: need to whiten regardless of marginal
-   distribution, so the only thing that's relevant is the
-   post-whitening distribution
+
+* Why are there two functions, evaluate_sorting and EvaluateSorting ?  Yuk.
+
+* In ground truth analysis, maybe state something like:
+  "Found <Hit> of <Hit+Miss> true spikes, missed <Miss> (XX.X%), and misreported <FA> (**%) false positives"
+   Standard to report: Recall: Hit/(Hit+Miss),  Precision: Hit/(Hit+FA) 
 
 * Display stats in ground truth comparison figures (preserved if we try
-  again with different params, increasing the starting figure number)
+  again with different params, increasing the starting figure number) ?
 
 %% -----------------------------------------------------------------
 SMALL ALGORITHMIC CHANGES:
