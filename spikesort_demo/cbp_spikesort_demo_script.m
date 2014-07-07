@@ -512,9 +512,9 @@ if (params.general.plot_diagnostics)
     end
 end
 
-% Diagnostics for waveforms: 
+% Diagnostics for CBP waveforms: 
 % If recovered waveforms differ significantly from initial waveforms, then algorithm
-% is not yet converged.  Execute this and go back to re-run CBP:
+% has not yet converged.  Execute this and go back to re-run CBP:
 %     params.cbp_outer.init_features = waveforms
 
 %**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.  Allow user to increase/decrease 
