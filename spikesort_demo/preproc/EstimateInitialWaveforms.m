@@ -31,11 +31,7 @@ data_rms = sqrt(sum(data .^ 2, 1));
 dof = size(data,1);
 chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
 chiVR = dof - chiMean^2;
-threshold = chiMean + 8*sqrt(chiVR); %**Magic number! 
-%*** SDT Solution: requires an estimate of the min amplitude to be detected, and the prior rate
-%ms = 10;   % min spike smplitude, in whitened space
-%pr = 1e-3;  %** PRIOR on firing rate
-%threshold = (log(1-pr)-log(pr) + ms^2/2)/ms;  %SDT threshold, assuming univariate Gaussian noise
+threshold = chiMean + pars.threshold*sqrt(chiVR);
 
 % Identify time indices of candidate peaks.
 peak_idx = FindPeaks(data_rms(:), threshold, pars);

@@ -22,7 +22,7 @@ params = load_default_parameters();
 
 % Load an example data set, including raw data, the timestep, and (optionally) ground
 % truth spike times.
-switch 1 
+switch 2
     case 1
        % Simulated data: single electrode.
        % From: Quiroga et. al., Neural Computation, 16:1661-1687, 2004.
@@ -189,7 +189,7 @@ if (params.general.plot_diagnostics)
     nchan = size(filtdata.data,1);
     chiMean = sqrt(2)*gamma((nchan+1)/2)/gamma(nchan/2);
     chiVR = nchan - chiMean^2;
-    thresh = chiMean + 8*sqrt(chiVR); %** magic number - yuk!
+    thresh = chiMean + params.clustering.threshold*sqrt(chiVR);
     peakInds = dataMag(inds)> thresh;  
     peakLen = params.clustering.peak_len;
     if (isempty(peakLen)), peakLen=floor(params.general.waveform_len/2); end;
@@ -243,14 +243,11 @@ end
 %   should be diagonal. If not, try the following: a. increasing
 %   params.whitening.num_acf_lags b. increasing params.whitening.min_zone_len Note
 %   that this trades off with the quality the estimates (see prev).
-% Fig 6: distributiobn of data in noise regions, which by default is assumed to
-%   be Gaussian.  If it doesn't match, may need to change the value of
-%   params.whitening.p_norm (set to 1 for Laplacian).
 % Fig 1: Highlighted segments of whitened data (green) will be used to estimate
 %   waveforms in the next step.  These should contain spikes, and non-highlighted
 %   regions should contain background noise.  
 % Fig 3: Histogram of magnitudes, and threshold used to identify segments.
-% ***TODO*** how adjust threshold?
+%   If spikes are in noise regions, lower params.whitening.threshold
 
 %% -----------------------------------------------------------------
 % Preprocessing Step 3: Estimate initial spike waveforms
@@ -309,11 +306,6 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 % NOTE: This is for computational speedup only, so choose a conservative (low)
 % threshold to avoid missing spikes!
 
-%**Used to be 4*std (data_rms), which was arbitrary.  Slightly better:
-dof = size(data_pp.data,1);
-chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);  chiVR = dof - chiMean^2;
-params.partition.threshold = chiMean + 2*sqrt(chiVR); 
-                    
 [snippets, breaks, snippet_lens, snippet_centers, snippet_idx] = ...
     PartitionSignal(data_pp.data, params.partition);
 fprintf('Partitioned signal into %d chunks\n', length(snippets));
@@ -322,7 +314,8 @@ fprintf('Partitioned signal into %d chunks\n', length(snippets));
 %**TODO: fix plotting for multi-electrodes
 if (params.general.plot_diagnostics)
     fignum1 = params.plotting.first_fig_num;
-    if (ishghandle(fignum1+4)), close(fignum1+4); end
+    figsToClose= fignum1+[3:4];
+    close(figsToCLose(ishghandle(figsToClose)));
     figure(fignum1+2); clf; 
     data_rms = sqrt(sum(data_pp.data .^ 2, 1));
     len = floor(params.general.waveform_len/2);
@@ -334,21 +327,23 @@ if (params.general.plot_diagnostics)
     breakHist = hist(wnBreak, X);
     bar(X,N); set (gca,'Yscale', 'log');
     hold on;
-    plot(X, 10*snipHist, 'g', 'LineWidth', 2);  %**TODO: yuk, why the 10* ??
+    plot(X, snipHist, 'g', 'LineWidth', 2);
     plot(X, breakHist, 'r', 'LineWidth', 2);
     hold off
     title('Histogram of windowed 2-norms');
     legend('all data', 'snippets', 'noise gaps');
     
+   if (0)
     figure(fignum1+3); clf;
     snipLengths = cellfun(@(s) size(s,1), snippets);
     [N, X] = hist(snipLengths,100);
     bar(X,N); set(gca,'Yscale', 'log');
     title('Histogram of partitioned segment durations');
+   end
 end
 
-% Diagnostics for data partitioning: **TODO**
-% Shouldn't see any large-amplitude content in the noise gaps.
+% Diagnostics for data partitioning: 
+% Fig 3: Shouldn't see any large-amplitude content in the noise gaps.
 
 %% -----------------------------------------------------------------
 % CBP setup
@@ -451,8 +446,9 @@ end
 %% -----------------------------------------------------------------
 % CBP step 1: use CBP to estimate spike times of all cells
 
+cbp_pars.progress = true; % Set false if progress bar causes Java errors
+
 starttime = tic;
-cbp_pars.progress = true; % Set false if getting Java errors from progress bar
 [spike_times, spike_amps, recon_snippets] = ...
     SpikesortCBP(snippets, ...
                  snippet_centers, ...
@@ -460,10 +456,37 @@ cbp_pars.progress = true; % Set false if getting Java errors from progress bar
                  cbp_pars);
 toc(starttime);
 
+% Histogram of windowed norm for data, whitened data, residual
+if (params.general.plot_diagnostics)
+  data_recon = cell(size(snippets));
+  for i = 1:numel(snippets)
+    data_recon{i} = snippets{i} - recon_snippets{i};
+  end
+  wnsnip = cellfun(@(s) windowed_norm(s', params.general.waveform_len), snippets, 'UniformOutput', false);
+  wnbreak = windowed_norm(cell2mat(breaks')', params.general.waveform_len);
+  wnresid = cellfun(@(s) windowed_norm(s', params.general.waveform_len), data_recon, 'UniformOutput', false);
+  
+  figure(params.plotting.first_fig_num+2);
+  [N,X] = hist(cell2mat(wnsnip')', 100);
+  % Nbreak = hist(wnbreak', X);
+  Nresid = hist(cell2mat(wnresid')', X);
+  chi = 2*X.*chi2pdf(X.^2, nchan*params.general.waveform_len);
+  bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
+  hold on;
+  % plot(X,(max(N)/max(Nbreak))*Nbreak,'r','LineWidth', 2);
+  plot(X,(max(N)/max(Nresid))*Nresid, 'g', 'LineWidth', 2);
+  plot(X,(max(N)/max(chi))*chi, 'c','LineWidth', 2);
+  hold off; set(gca,'Ylim', yrg);
+  legend('all snippets', 'snippet post-CBP residuals', 'expected noise (Chi)');
+  title('Histogram of windowed 2-norms');
+end
+
+% Initial CBP diagnostics: (Unnecessary?)
+% Residual should not have high-amplitude regions (if it does, increase
+% params.cbp.firing_rates, and re-run CBP).
+    
 %% -----------------------------------------------------------------
 % Pick amplitude thresholds and interactively visualize effect on ACorr/XCorr
-
-% NB: Much faster if mex trialevents.c is compiled
 
 % Allow this much slack in time bins of spike locations, for live updating 
 % ground truth feedback
@@ -486,42 +509,10 @@ spike_location_slack = 30;
 % by closing the figure window.
 [atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, 'location_slack', spike_location_slack);
 
-%**TODO: Plot [ do this for clustering also ]
-% for each cell: waveform, total spikes and spike rate, amplitude distribution with thredhold indicated, autocorrelationPSTH 
-% for each pair: cross-correlationPSTH, in time bins roughly the width of the main portion of the waveforms
-%    ( for easy discernment of synchrony artifacts).
-
-% -----------------------------------------------------------------
-% Histogram of windowed norm for data, whitened data, residual
-
-data_recon = cell(size(snippets));
-for i = 1:numel(snippets)
-    data_recon{i} = snippets{i} - recon_snippets{i};
-end
-wnsnip = cellfun(@(s) windowed_norm(s', params.general.waveform_len), snippets, 'UniformOutput', false);
-wnbreak = windowed_norm(cell2mat(breaks')', params.general.waveform_len);
-wnresid = cellfun(@(s) windowed_norm(s', params.general.waveform_len), data_recon, 'UniformOutput', false);
-
-if (params.general.plot_diagnostics)
-    figure(params.plotting.first_fig_num);
-    [N,X] = hist(cell2mat(wnsnip')', 100);
-    Nbreak = hist(wnbreak', X);
-    Nresid = hist(cell2mat(wnresid')', X);
-    chi = 2*X.*chi2pdf(X.^2, nchan*params.general.waveform_len);
-    bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
-    hold on;
-    plot(X,(max(N)/max(chi))*chi, 'c','LineWidth', 2);
-    plot(X,(max(N)/max(Nbreak))*Nbreak,'r','LineWidth', 2);
-    plot(X,(max(N)/max(Nresid))*Nresid, 'g', 'LineWidth', 2);
-    hold off; set(gca,'Ylim', yrg);
-    legend('all snippets', 'expected (Chi)', 'silences', 'snippet post-CBP residuals');
-    title('Histogram of windowed 2-norms');
-end
-    
-% Diagnostics for CBP spike-finding: ***TODO***
-% amplitudes should be around 1.  autocorr should show zeros spikes in refractory period (roughly *** msec)
-% crosscorr should not have a notch around zero (common in clustering methods)
-% Residual should not have high-amplitude regions (if it does, increase cbp_pars.firing_rates, and re-run CBP).
+% Diagnostics for CBP spike-detection: 
+% Amplitudes should be around 1, Auto-correlations should show zero spikes in the
+% refractory period (roughly 1-3msec), and Cross-correlations should not have a
+% narrow notch around zero (common in clustering methods).
 
 %% -----------------------------------------------------------------
 % CBP Step 2: re-estimate waveforms
@@ -555,11 +546,12 @@ if (params.general.plot_diagnostics)
 end
 
 % Diagnostics for waveforms: 
-%**TODO: Visualize spikes in PC space, compared to clustering result.  Allow user to increase/decrease 
-% number of waveforms.
+% If recovered waveforms differ significantly from initial waveforms, then algorithm
+% is not yet converged.  Execute this and go back to re-run CBP:
+%     cbp_outer_pars.init_features = waveforms
 
-% if recovered waveforms differ significantly from initial waveforms, execute this and re-run CBP:
-%      cbp_outer_pars.init_features = waveforms
+%**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.  Allow user to increase/decrease 
+% number of waveforms.
 
 
 %% -----------------------------------------------------------------

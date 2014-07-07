@@ -1,5 +1,13 @@
 2014-07-06  Eero Simoncelli  <eero@elvira.cns.nyu.edu>
 
+	* spikesort_demo/preproc/PartitionSignal.m (dead_zone_idx): 
+	Modified threshold code: threshold parameter is now in units of stdev.
+
+	* spikesort_demo/preproc/PreprocessTrace.m (noise_zone_idx): 
+	- commented out display of pre-whitened marginal histograms.
+	These are not relevant, since we currently hardwire the exponent
+	to 2 in the CBP optimization.
+
 	* spikesort_demo/load_default_parameters.m: 
 	- Moved num_waveforms back into clustering section (hadn't realized
 	there was a separate one for CBP!)

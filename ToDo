@@ -17,13 +17,14 @@ INTERFACE/COSMETIC CHANGES:
 * Top-level function PreprocessTrace should probably be renamed WhitenTrace
   (but there's already another function with that name).
     
-* In PreprocessTrace, display  noise distribution after whitening, not
-   before. Reasoning: need to whiten regardless of marginal
-   distribution, so the only thing that's relevant is the
-   post-whitening distribution
+* PreprocessTrace displays noise distribution before whitening, but
+  the relevant distribution is AFTER whitening, since this is the data
+  that will be used by CBP.  So, (1) modify CBP code to pay attention
+  to the p-norm exponent, and then (2) show noise marginals AFTER
+  whitening.
 
 * VisualizeClustering
-  - display of waveforms/traces for multi-electrodes is confusing
+  - display of waveforms/traces for multi-electrodes is confusing... Not sure how to fix
   - Show a black asterisk at the current waveforms (centroids)
   - give time in msec, not samples
   - show spike rates, in addition to total count
@@ -33,7 +34,10 @@ INTERFACE/COSMETIC CHANGES:
 * AmplitudeThresholdGUI:
   - give timescales in msec, not samples
   - show total spike counts (and rate) for each cell. 
-  - clicking escape key should exit, choosing the automatic values
+  - clicking escape key should exit, LEAVING WINDOW ON SCREEN!
+  - figure number argument
+  - for cross-correlations, make time bins roughly the width of the main portion of the waveforms (0.5msec?)
+     ( for easy discernment of synchrony artifacts).
   - if general.plot_diagnostics is false, should just choose auto values
 
 * After running CBP, provide GUI to click on amplitude, auto or
@@ -58,9 +62,9 @@ INTERFACE/COSMETIC CHANGES:
 %% -----------------------------------------------------------------
 SMALL ALGORITHMIC CHANGES:
 
-* Data file should include a t0 (time of initial sample) and all times
-  should be relative to that! But this requires computing/correcting
-  filtering lags.
+* Data file should include a t0 (time of initial sample, in sec) and
+  all times should be relative to that! But this requires
+  computing/correcting filtering lags.
 
 * default waveform_len should take into account data.dt (around 8 msec)
 * default filter.freq should cover range of typical spike waveforms (in Hz)  
@@ -69,18 +73,21 @@ SMALL ALGORITHMIC CHANGES:
 
 * Improve consistency of thresholding tests for spikes/noise: 
   - Filtering section globally rescales data so that max(abs) is 1.
+    [should rescale each channel separately, so noise has same variance]
   - Whitening section compares cross-channel norm (CCN) to noise_threshold to find noise regions
      [should probably use an Lp norm with p>2, emphasizing peaks]
   - Clustering section compares 4*std(CCN) to grab spike segments - where did this come from ??
      [user should set a tolerable error rate (miss+fa), and provide a prior on firing rates, and this 
-      theshold should be chosen using standard SDT]
+      theshold should be chosen using standard SDT:
+      T= (log(1-pr)-log(pr) + a^2/2)/a, where pr=prior chance of spike in dt, a=spike amplitude
   - Partitioning (snippets) section: uses another threshold, and
      additionally relies on min_separation_length and min/max snippet
      length parameters.  Choose partion_pars.threshold based on
      sliding Lp-norm?  The threshold should be the minimum window
      Lp-norm containing any overlap of any pair of waveforms. 
 
-* CBP priors on firing rates (currently hard-coded) should at least be scaled with data.dt
+* CBP priors  (currently hard-coded) should at least be scaled with data.dt
+  (i.e.,  spike prior = rate prior (spikes/sec) * data.dt (sec/sample))
   and perhaps incorporate number of spikes found by clustering.
 
 * filtering.pad doesn't need to be a parameter.  Left side should be
@@ -93,6 +100,9 @@ MAJOR ALGORITHM MODIFICATIONS:
 * Handle noise distributions with other pnorms (stretched
   exponentials) [NOTE: easy with cvx package, but hard to do with
   ecos]
+
+* Allow systematic amplitude reductions based on time/ampltidue of
+  previous spike.
 
 * Use an operator-splitting optimization method (e.g., ADMM) to embed
   the final thresholding step into the iterative process.

@@ -45,8 +45,14 @@ noise_zone_idx = GetNoiseZones(data_rms, ...
                                white_pars.noise_threshold, ...
                                min_zone_len);
 
-if (gen_pars.plot_diagnostics)
+if (0)
+%**TODO: Doesn't make sense to show this, since it's the marginals
+% BEFORE whitening.  All that matters is the marginals AFTER
+% whitening (which the objective function for CBP relies on).
     PlotNoiseDbn(noise_zone_idx, data, params.plotting.first_fig_num+5, params.plotting.font_size);
+% Fig 6: distribution of data in noise regions, which by default is assumed to
+%   be Gaussian.  If it doesn't match, may need to change the value of
+%   params.whitening.p_norm (set to 1 for Laplacian).
 end
 
 % Whiten trace if desired
