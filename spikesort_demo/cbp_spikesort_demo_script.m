@@ -22,7 +22,7 @@ params = load_default_parameters();
 
 % Load an example data set, including raw data, the timestep, and (optionally) ground
 % truth spike times.
-switch 2
+switch 1
     case 1
        % Simulated data: single electrode.
        % From: Quiroga et. al., Neural Computation, 16:1661-1687, 2004.
@@ -301,10 +301,8 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 % Partition data into snippets, separated by "noise zones" in which the RMS of the
 % waveforms does not surpass "threshold" for at least "min_separation_len"
 % consecutive samples. Snippets are constrained to have duration between
-% min/max_snippet_len.
-%
-% NOTE: This is for computational speedup only, so choose a conservative (low)
-% threshold to avoid missing spikes!
+% min/max_snippet_len.  NOTE: This is for computational speedup only, so choose a
+% conservative (low) threshold to avoid dropping spikes!
 
 [snippets, breaks, snippet_lens, snippet_centers, snippet_idx] = ...
     PartitionSignal(data_pp.data, params.partition);
@@ -314,8 +312,8 @@ fprintf('Partitioned signal into %d chunks\n', length(snippets));
 %**TODO: fix plotting for multi-electrodes
 if (params.general.plot_diagnostics)
     fignum1 = params.plotting.first_fig_num;
-    figsToClose= fignum1+[3:4];
-    close(figsToCLose(ishghandle(figsToClose)));
+    figsToClose = fignum1+[3:4];
+    close(figsToClose(ishghandle(figsToClose)));
     figure(fignum1+2); clf; 
     data_rms = sqrt(sum(data_pp.data .^ 2, 1));
     len = floor(params.general.waveform_len/2);
@@ -352,66 +350,37 @@ end
 figNums = params.plotting.first_fig_num+[0:5];
 close(figNums(ishghandle(figNums)));
 
-%**TODO: move default params into load_default_parameters
-% Should be able to leave most of these defaults
-num_waveforms = params.clustering.num_waveforms;
-
-% The polar_1D version seemed to be cutting things down too much...
-adjust_wfsize_fn = @(w) w; %polar_1D_adjust_wfsize(w, 0.1, 0.025, 301), ...
-
-% cbp_outer_pars are parameters for learning the waveforms.
-cbp_outer_pars = struct( ...
-    'num_iterations', 2e2, ... % number of learning iterations
-	'batch_size', 125, ... % batch size for learning
-	'step_size', 5e-2, ... % step size for updating waveform shapes
-	'step_size_decay_factor', 1, ... % annealing
-	'plotevery',1, ... % plot interval
-	'stop_on_increase', false, ... % stop when objective function increases
-	'check_coeff_mtx', true, ... % sanity check (true to be safe)
-	'adjust_wfsize', ... % called each iteration to adjust waveform size
-        adjust_wfsize_fn, ...
-	'rescale_flag', false, ... % always FALSE 
-	'renormalize_features', false, ... % always FALSE
-	'reestimate_priors', false, ... % always FALSE
-    'CoeffMtx_fn', @polar_1D_sp_cnv_mtx, ... % convolves spikes w/waveforms
-    'plot_every', 1 ... % plotting frequency    
-);
+% Fill in missing parameters
+if (isempty (params.cbp.num_features))
+  %num_waveforms = params.clustering.num_waveforms;
+  num_waveforms = size(centroids, 2);
+  params.cbp.num_features = num_waveforms;
+else
+  num_waveforms = params.cbp.num_features;
+end
 
 % Set initial estimates of spike waveforms to the clustering centroids
-cbp_outer_pars.init_features = cell(size(centroids, 2), 1);
-cbp_outer_pars.num_chan = data_pp.nchan;
+params.cbp_outer.init_features = cell(num_waveforms, 1);
+params.cbp_outer.num_chan = data_pp.nchan;
 for i = 1 : num_waveforms
-    cbp_outer_pars.init_features{i} = ...
-        reshape(centroids(:, i), [], cbp_outer_pars.num_chan);
+    params.cbp_outer.init_features{i} = ...
+        reshape(centroids(:, i), [], params.cbp_outer.num_chan);
 end 
 
-% cbp_pars are parameters for doing sparse inference.
-cbp_pars = struct ( ...
-    'noise_sigma',  data_pp.noise_sigma, ... % Optimization parameters
-    'firing_rates', 1e-3 .* ones(num_waveforms, 1), ... % prior firing rate
-    'cbp_core_fn', @polar_1D_cbp_core, ... % CBP core interpolation
-    'solve_fn', @cbp_ecos_2norm, ... % Optimization solver function
-    'debug_mode', false, ... % debug mode
-    'num_reweights', 1e3, ... % MAX number of IRL1 iterations
-    'magnitude_threshold', 1e-2, ... % amplitude threshold for deleting spikes
-    'parfor_chunk_size', Inf, ... % parallelization chunk size
-    'num_features', num_waveforms ... % number of "cells"
-);
-
-% -----------------------------------------------------------------
-% CBP parameters that should be adjusted by user
+% Prior expected firing rates
+params.cbp.firing_rates = 1e-3 .* ones(num_waveforms, 1);
 
 % For picking template delta
-cbp_pars.accuracy = 0.1;
+params.cbp.accuracy = 0.1;
 
 % Try single-spike soln first?
-cbp_pars.compare_greedy = false; 
-cbp_pars.greedy_p_value = 0; % tolerance to accept greedy soln
-% cbp_pars.greedy_p_value = 1 - 1e-5;
+params.cbp.compare_greedy = false; 
+params.cbp.greedy_p_value = 0; % tolerance to accept greedy soln
+% params.cbp.greedy_p_value = 1 - 1e-5;
 
 % Corr. threshold below which atoms will not be used during CBP.
 % For speedup only; set to 0 to disable
-cbp_pars.prefilter_threshold = 0; %0.01, ... 
+params.cbp.prefilter_threshold = 0; %0.01, ... 
 
 % -----------------------------------------------------------------
 % Pick solver and reweighting parameters
@@ -420,15 +389,13 @@ cbp_pars.prefilter_threshold = 0; %0.01, ...
 % addpath(fullfile(sstpath, '../cvx/'));
 % cvx_setup;
 % cvx_solver sedumi; 
-
-% cbp_pars.solve_fn = @cbp_cvx;
-% cbp_pars.solve_fn = @cbp_qcml_sumsquare;
+% params.cbp.solve_fn = @cbp_cvx;
+% params.cbp.solve_fn = @cbp_qcml_sumsquare;
 % reweight_exp = 25 * [1 1 1];
 
-cbp_pars.solve_fn = @cbp_ecos_2norm;
+params.cbp.solve_fn = @cbp_ecos_2norm;
 reweight_exp = 1.5 * ones(1, num_waveforms);
-
-cbp_pars.lambda = reweight_exp(:); % multiplier for sparsity weight
+params.cbp.lambda = reweight_exp(:); % multiplier for sparsity weight
 
 % FIXME: Move function definition inside CBP, but leave explanation of
 % reweight_exp for users.
@@ -438,22 +405,22 @@ cbp_pars.lambda = reweight_exp(:); % multiplier for sparsity weight
 % x should be set to -d/dz(log(P(z)))|z=x where P(z) is the prior density
 % on the spike amplitudes. Here we employ a power-law distribution for 
 % 0 <= x <= M with exponent=reweight_exp and offset=eps
-cbp_pars.reweight_fn = cell(num_waveforms, 1);
+params.cbp.reweight_fn = cell(num_waveforms, 1);
 for i = 1 : num_waveforms
-    cbp_pars.reweight_fn{i} = @(x) reweight_exp(i) ./ (eps + abs(x));    
+    params.cbp.reweight_fn{i} = @(x) reweight_exp(i) ./ (eps + abs(x));    
 end
 
 %% -----------------------------------------------------------------
 % CBP step 1: use CBP to estimate spike times of all cells
 
-cbp_pars.progress = true; % Set false if progress bar causes Java errors
+params.cbp.progress = true; % Set false if progress bar causes Java errors
 
 starttime = tic;
 [spike_times, spike_amps, recon_snippets] = ...
     SpikesortCBP(snippets, ...
                  snippet_centers, ...
-                 cbp_outer_pars, ...
-                 cbp_pars);
+                 params.cbp_outer, ...
+                 params.cbp);
 toc(starttime);
 
 % Histogram of windowed norm for data, whitened data, residual
@@ -534,11 +501,11 @@ if (params.general.plot_diagnostics)
 
     for i = 1:numel(waveforms)
         subplot(nr, nc, i);
-        inith = plot(cbp_outer_pars.init_features{i}, 'b');
+        inith = plot(params.cbp_outer.init_features{i}, 'b');
         hold on
         finalh = plot(waveforms{i}, 'r');
         hold off
-        err = norm(cbp_outer_pars.init_features{i} - waveforms{i})/...
+        err = norm(params.cbp_outer.init_features{i} - waveforms{i})/...
               norm(waveforms{i});
         title(sprintf('Waveform %d, Rel error=%.2f', i, err))
         legend([inith(1) finalh(1)], {'Initial', 'New'});
@@ -548,7 +515,7 @@ end
 % Diagnostics for waveforms: 
 % If recovered waveforms differ significantly from initial waveforms, then algorithm
 % is not yet converged.  Execute this and go back to re-run CBP:
-%     cbp_outer_pars.init_features = waveforms
+%     params.cbp_outer.init_features = waveforms
 
 %**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.  Allow user to increase/decrease 
 % number of waveforms.

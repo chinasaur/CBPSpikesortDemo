@@ -40,6 +40,10 @@ INTERFACE/COSMETIC CHANGES:
      ( for easy discernment of synchrony artifacts).
   - if general.plot_diagnostics is false, should just choose auto values
 
+* CBP: initial waveforms should not be parameters, but arguments to function.
+   firing_rates parameter should be able to be set by default to a scalar (which is then replicated appropriately).
+   num_features seems redundant with the initial waveforms.
+
 * After running CBP, provide GUI to click on amplitude, auto or
   cross-correlation and inspect the correpsonding data.  Specifically,
   user should be able to examine unusually large or small amplitude

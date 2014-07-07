@@ -1,5 +1,8 @@
 2014-07-06  Eero Simoncelli  <eero@elvira.cns.nyu.edu>
 
+	* spikesort_demo/load_default_parameters.m (adjust_wfsize_fn): 
+	Moved cbp and cbp_outer parameters  into here.
+
 	* spikesort_demo/preproc/PartitionSignal.m (dead_zone_idx): 
 	Modified threshold code: threshold parameter is now in units of stdev.
 
