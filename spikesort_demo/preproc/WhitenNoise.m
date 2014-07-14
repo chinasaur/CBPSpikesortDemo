@@ -1,4 +1,4 @@
-function whitedatastruct = PreprocessTrace(datastruct, params)
+function whitedatastruct = WhitenNoise(datastruct, params)
 % Preprocess extracellularly recorded voltage trace by estimating noise
 % and whitening if desired.
 % FIXME: Appears to clip rawdata
@@ -66,7 +66,6 @@ noise_sigma = 1;
 fprintf('noise_sigma=%f\n', noise_sigma);
 
 
-
 % Standardization AGAIN
 
 if 0
@@ -77,7 +76,11 @@ data_whitened = data_whitened - ...
 data_whitened = data_whitened ./ max(abs(data_whitened(:)));
 end
 
-
+% Output
+whitedatastruct = datastruct;
+whitedatastruct.data = data_whitened;
+whitedatastruct.noise_sigma = noise_sigma;
+whitedatastruct.processing{end+1} = log;
 
 
 % Visualization of noise zone estimation
@@ -85,8 +88,8 @@ dt = datastruct.dt;
 font_size = params.plotting.font_size;
 nchan = size(data_whitened, 1);
 
-if (0) 
-    figure(2); clf;
+if (0) %Old display code: unnecessary since this is plotted in FilterData.m
+    figure; clf;
     plot_len = 5e3;
     middle_idx = ceil(size(data, 2) / 2) + (-plot_len : plot_len);
     xax = (0 : dt : (length(middle_idx) - 1) * dt) .* 1e3;
@@ -110,6 +113,67 @@ if (0)
     set(lg, 'FontSize', font_size);
 end
 
+
+if (params.general.plot_diagnostics)
+    inds = params.plotting.dataPlotInds;
+    % copied from preproc/EstimateInitialWaveforms.m:
+    dataMag = sqrt(sum(whitedatastruct.data .^ 2, 1));
+    nchan = whitedatastruct.nchan;
+    chiMean = sqrt(2)*gamma((nchan+1)/2)/gamma(nchan/2);
+    chiVR = nchan - chiMean^2;
+    thresh = chiMean + params.clustering.threshold*sqrt(chiVR);
+    peakInds = dataMag(inds)> thresh;  
+    peakLen = params.clustering.peak_len;
+    if (isempty(peakLen)), peakLen=floor(params.general.waveform_len/2); end;
+    for i = -peakLen : peakLen
+        peakInds = peakInds & dataMag(inds) >= dataMag(inds+i);
+    end
+    peakInds = inds(peakInds);
+
+    figure(params.plotting.first_fig_num); subplot(3,1,3); cla
+    sigCol = [0.4 1 0.5];
+    hold on;
+    sh = patch(whitedatastruct.dt*[[1;1]*(peakInds-peakLen); [1;1]*(peakInds+peakLen)], ...
+          thresh*[-1;1;1;-1]*ones(1,length(peakInds)), sigCol,'EdgeColor',sigCol);
+    plot((inds-1)*whitedatastruct.dt, whitedatastruct.data(:,inds)');
+    hold off
+    axis tight
+    title('Filtered & noise-whitened data')
+    legend('Segments exceeding threshold (putative spikes)');
+    
+    figure(params.plotting.first_fig_num+1); subplot(3,1,3);
+    maxDFTind = floor(whitedatastruct.nsamples/2);
+    dftMag = abs(fft(whitedatastruct.data,[],2));
+    if (nchan > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;
+    plot(([1:maxDFTind]-1)/(maxDFTind*whitedatastruct.dt*2), dftMag(1:maxDFTind));
+    set(gca, 'Yscale', 'log'); axis tight; 
+    xlabel('frequency (Hz)'); ylabel('amplitude');
+    title('Fourier amplitude of filtered & noise-whitened data');
+    
+    figure(params.plotting.first_fig_num+2); clf
+    subplot(2,1,1);
+    mx = max(abs(whitedatastruct.data(:)));
+    X=linspace(-mx,mx,100);
+    N=hist(whitedatastruct.data',X);
+    plot(X,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
+    hold on; 
+    gh=plot(X, max(N(:))*exp(-(X.^2)/2), 'r', 'LineWidth', 2); 
+    hold off; set(gca,'Ylim',rg); 
+    title('Histogram(s) of filtered/whitened channel(s)');
+    legend(gh, 'Univariate Gaussian');
+    subplot(2,1,2);
+    [N,X] = hist(dataMag, 100);
+    Nspikes = hist(dataMag(dataMag>thresh), X);
+    chi = 2*X.*chi2pdf(X.^2, nchan);
+    bar(X,N); set(gca,'Yscale','log'); 
+    yrg= get(gca, 'Ylim'); xrg= get(gca,'Xlim');
+    hold on; 
+    dh= bar(X,Nspikes); set(dh, 'FaceColor', sigCol);
+    ch= plot(X, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
+    hold off; set(gca, 'Ylim', yrg); 
+    title('Histogram, magnitudes of filtered/whitened data');
+    legend([dh, ch], 'putative spikes', 'chi-distribution for white noise');
+end    
 
 
 % Visualization of whitening effects
@@ -145,14 +209,7 @@ if (gen_pars.plot_diagnostics)
     end
 end
 
-
-% Output
-whitedatastruct = datastruct;
-whitedatastruct.data = data_whitened;
-whitedatastruct.noise_sigma = noise_sigma;
-whitedatastruct.processing{end+1} = log;
-
-
+%% -----------------------------------------------------------------
 %% Whitening routines
 
 function PlotNoiseDbn(noise_zone_idx, data, fignum, font_size)

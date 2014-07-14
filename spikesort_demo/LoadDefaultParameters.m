@@ -14,7 +14,7 @@ filtering.type  = 'fir1';      % "fir1", "butter"
 filtering.pad   = 5e3;         % padding (in samples) to avoid border effects
 filtering.order = 50;          % See Harris 2000
 
-whitening.noise_threshold = 0.15;  % threshold, rel. to 1, used to detect and remove spikes, estimating
+whitening.noise_threshold = 0.15;  % threshold, rel. to max amplitude of 1, used to detect and remove spikes, estimating
                                    % covariance of the remaining noise
 whitening.p_norm          = 2;     % sliding-window Lp-norm is computed and thresholded
 whitening.num_acf_lags    = 120;   % duration over which to estimate ACF
@@ -56,15 +56,15 @@ cbp_outer.reestimate_priors = false;  % always FALSE
 cbp_outer.CoeffMtx_fn =  @polar_1D_sp_cnv_mtx;  % convolves spikes w/waveforms
 cbp_outer.plot_every = 1;   % plotting frequency    
 
-cbp.noise_sigma = 1;  
-cbp.firing_rates = [];  %prior
+cbp.num_features = [];  % number of "cells", empty => copy from params.clustering
+cbp.firing_rates = [];  %prior: probability of observering a spike in a time bin
+cbp.noise_sigma = 1;  %assumes that noise has been whitened 
 cbp.cbp_core_fn = @polar_1D_cbp_core;  % CBP core interpolation
 cbp.solve_fn =  @cbp_ecos_2norm;  % Optimization solver function
 cbp.debug_mode = false;  % debug mode
 cbp.num_reweights = 1e3;  % MAX number of IRL1 iterations
 cbp.magnitude_threshold = 1e-2; % amplitude threshold for deleting spikes
 cbp.parfor_chunk_size = Inf;  % parallelization chunk size
-cbp.num_features = [];  % number of "cells", empty => copy from params.clustering
 
 params.general      = general;
 params.plotting     = plotting;

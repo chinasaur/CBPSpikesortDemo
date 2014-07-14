@@ -1,11 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Test script for CBP spike sorting
+%%% Demonstration script for CBP spike sorting.  
+%%% Please see the file README.md for a description of this code.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Please see the file README.md for a description of this code.
-
-%% -----------------------------------------------------------------
-% Setup
 
 % Set the current working directory to the directory containing this file:
 % cd spikesort_demo
@@ -18,80 +14,28 @@ spikesort_demo_setup(pwd());
 %% -----------------------------------------------------------------
 % Step 0: Load raw electrode data
 
-params = load_default_parameters();
+params = LoadDefaultParameters();
 
 % Load an example data set, including raw data, the timestep, and (optionally) ground
 % truth spike times.
-switch 1
-    case 1
-       % Simulated data: single electrode.
-       % From: Quiroga et. al., Neural Computation, 16:1661-1687, 2004.
-       [data, params] = load_raw_data('Quiroga1', params);
-    case 2
-       % Real data: tetrode + one ground-truth intracellular
-       % electrode, rat hippocampus
-       % From: Harris et. al., J. Neurophysiology, 84:401-414, 2000.
-       [data, params] = load_raw_data('Harris1', params);
-end
 
-if (data.dt > 1/5000) %** magic number
-   warning('Sampling rate is %.1f kHz, but recommended minimum is 5kHz', 1/(1000*data.dt)); 
-end
+% Simulated data: single electrode.
+% From: Quiroga et. al., Neural Computation, 16:1661-1687, 2004.
+[data, params] = LoadRawData('Quiroga1', params);
 
-% Plot a bit of raw data, to make sure it looks as expected:
-if (params.general.plot_diagnostics)
-    plotDur = min(2400,size(data.data,2));   %** magic number: should be a parameter
-    plotT0 = round((size(data.data,2)-plotDur)/2);
-    inds = plotT0+[1:plotDur];
-
-    figure(params.plotting.first_fig_num); clf; subplot(3,1,1); 
-    plot([inds(1), inds(end)]*data.dt, [0 0], 'k'); 
-    hold on; plot((inds-1)*data.dt, data.data(:,inds)'); hold off
-    axis tight; xlabel('time (sec)');  ylabel('voltage'); 
-    title(sprintf('Partial raw data, nChannels=%d, dt=%.2fmsec', size(data.data,1), 1000*data.dt));
-
-    figure(params.plotting.first_fig_num+1); clf; subplot(3,1,1); 
-    noiseCol=[1 0.3 0.3];
-    dftMag = abs(fft(data.data,[],2));
-    if (size(dftMag,1) > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;
-    maxDFTind = floor(size(data.data,2)/2);
-    maxDFTval = 1.2*max(dftMag(2:maxDFTind));
-    hold on;
-    if (~isempty(params.filtering.freq))
-      yr = [min(dftMag(2:maxDFTind)), maxDFTval];
-      xr = [0 params.filtering.freq(1)]; 
-      patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noiseCol);
-      if (length(params.filtering.freq) >  1)
-          f2 = params.filtering.freq(2);
-          if (f2 < 1/(data.dt*2))
-            xr = [f2 1/(data.dt*2)];
-            patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noiseCol);
-          end
-      end
-      legend('Frequencies to be filtered');
-    end
-    plot(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
-    hold off;
-    axis tight; set(gca,'Ylim', [0 maxDFTval]);  set(gca, 'Yscale','log');
-    xlabel('frequency (Hz)'); ylabel('amplitude'); 
-    title('Fourier amplitude, averaged over channels');
-end
+% Real data: tetrode + one ground-truth intracellular electrode, rat hippocampus
+% From: Harris et. al., J. Neurophysiology, 84:401-414, 2000.
+% [data, params] = LoadRawData('Harris1', params);
 
 %% -----------------------------------------------------------------
 % Preprocessing Step 1: Temporal filtering
 
 % Remove low and high frequencies - purpose is to eliminate non-signal parts of the
 % frequency spectrum, and enable crude identification and removal of segments
-% containg spikes via local amplitude thresholding, after which the background noise
-% covariance can be estimated.
-%   - pad with constant values (to avoid border effects when filtering)
-%   - filter with band/highpass filter
-%   - trim padding
-%   - remove mean from each channel
-%   - scale globally (across all channels) to be in range[-1, 1]
-%
-% The pre-filtering depends on values in params.filtering, which need to be adjusted
-% for each data set:
+% containing spikes via local amplitude thresholding, after which the background
+% noise covariance can be estimated.  In addition to filtering, the code removes the
+% mean from each channel, and rescales the data (globally) to have a max abs value of
+% one.  Filtering parameters:
 %   - freq : range of frequencies (in Hz) for designing filter
 %            Set to [] to turn off pre-filtering.
 %   - type : type of filter for preprocessing. Currently supports
@@ -99,170 +43,68 @@ end
 %   - pad  : number of constant-value samples to pad
 %   - order : order of the filter
 
-filtdata = FilterData(data, params.filtering);
-
-% Plot filtered data, Fourier amplitude, and histogram of magnitudes
-if (params.general.plot_diagnostics)
-    % copied from PreprocessTrace:
-    dataMag = sqrt(sum(filtdata.data .^ 2, 1));
-    nchan = size(filtdata.data,1);
-    thresh = params.whitening.noise_threshold;
-    minZoneLen = params.whitening.min_zone_len;
-    if isempty(minZoneLen), minZoneLen = params.general.waveform_len/2; end
-    noiseZones = GetNoiseZones(dataMag, thresh, minZoneLen);
-    noiseZoneInds = cell2mat(cellfun(@(c) c', noiseZones, 'UniformOutput', false));
-    zonesL = cellfun(@(c) c(1), noiseZones);  zonesR = cellfun(@(c) c(end), noiseZones);
-                                                      
-    figure(params.plotting.first_fig_num); subplot(3,1,2);
-    noiseCol = [1 0.4 0.4];
-    visibleInds = find(((inds(1) < zonesL) & (zonesL < inds(end))) |...
-                       ((inds(1) < zonesR) & (zonesR < inds(end))));
-    nh=patch(filtdata.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
-             thresh*[-1;1;1;-1]*ones(1,length(visibleInds)), noiseCol,...
-             'EdgeColor', noiseCol);
-    hold on; 
-    plot([inds(1), inds(end)]*filtdata.dt, [0 0], 'k'); 
-    dh = plot((inds-1)*filtdata.dt, filtdata.data(:,inds)');
-    hold off; 
-    set(gca, 'Xlim', ([inds(1),inds(end)]-1)*filtdata.dt);
-    set(gca,'Ylim',[-1 1]);  legend('noise regions, to be whitened');
-    title('Filtered data, w/ regions to be used for noise covariance estimation');
-
-    figure(params.plotting.first_fig_num+1); subplot(3,1,2);
-    dftMag = abs(fft(filtdata.data,[],2));
-    if (nchan > 1.5), dftMag = sqrt(sum(dftMag.^2)); end;
-    plot(([1:maxDFTind]-1)/(maxDFTind*filtdata.dt*2), dftMag(1:maxDFTind));
-    set(gca,'Yscale','log'); axis tight; 
-    xlabel('frequency (Hz)'); ylabel('amplitude');
-    title('Fourier amplitude of filtered data');
-    
-    figure(params.plotting.first_fig_num+2); clf
-    [N,X] = hist(dataMag, 100); 
-    [Nnoise] = hist(dataMag(noiseZoneInds), X);
-    sd = sqrt(sum(cellfun(@(c) sum(dataMag(c).^2), noiseZones)) / ...
-              (nchan*sum(cellfun(@(c) length(c), noiseZones))));
-    chi = 2*(X/sd).*chi2pdf((X/sd).^2, nchan);
-    bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
-    hold on; 
-    dh= bar(X,Nnoise); set(dh, 'FaceColor', noiseCol);
-    ch= plot(X, (max(N)/max(chi))*chi, 'g'); 
-    hold off; set(gca, 'Ylim', yrg);
-    xlabel('voltage rms magnitude (over all channels)'); 
-    legend([dh, ch], 'noise', 'fitted chi2');
-    title('Histogram of magnitudes');
-end
+filtdata = FilterData(data, params);
 
 % Diagnostics for filtering: 
-% In the next step, noise covariance will be estimated from regions below threshold
-% (fig1, red).  There should be no spikes in these regions.  As an additional check,
-% the below-threshold portion of the histogram (fig 3, red) should look like a
-% chi-square distribution (green).  If spikes appear to be included in the noise
-% segments, reduce params.whitening.noise_threshold, or modify the filtering
-% parameters in params.filtering, and re-run the filtering step.
+% Fig 1 shows filtered data.  In the next step, noise covariance will be estimated
+% from below-threshold regions, which are indicated in red. There should be no spikes
+% in these regions.  Fig 2 shows Fourier amplitude (effects of filtering should be
+% visible.  Fig 3 shows histogram of the cross-channel magnitudes.  Below-threshold
+% portion is colored red, and should look like a chi distribution with fitted
+% variance (green).  If spikes appear to be included in the noise segments, reduce
+% params.whitening.noise_threshold, or modify the filtering parameters in
+% params.filtering, and re-run the filtering step.
 
 %% -----------------------------------------------------------------
 % Preprocessing Step 2: Estimate noise covariance and whiten
 
-% Estimate and whiten the noise, assuming space/time separability. This makes the
-% L2-norm portion of the objective into a simple sum of squares, greatly improving
-% computational efficiency.
-%   - estimate "noise zones" (regions of length min_zone_len or more 
-%     samples whose cross-channel Lp-norm are below noise_threshold).
-%   - compute noise ACF from these zones
-%   - whiten each channel in time by taking inverse matrix sqrt of ACF
-%   - whiten across channels by left-multiplying each time slice 
-%     by inverse matrix sqrt of the covariance matrix.
-%
-%  The whitening process depends on elements of params.whitening::
-%   - whitening.noise_threshold : this threshold is used to crudely separate noise 
-%     from signal, for purposes of estimating the noise covariance. The 
-%     root-mean-squared signal value (across channels) is compared to this 
-%     threshold.  
-%   - reg_const : regularization constant.  This multiple of the identity 
-%     matrix is added to the measured covariance matrix.
+% Estimate and whiten the noise, assuming channel/time separability. This makes the
+% L2-norm portion of the CBP objective into a sum of squares, simplifying the
+% computation and improving computational efficiency.
+%   - find "noise zones" (regions of length min_zone_len or more 
+%     samples whose cross-channel L2-norm are below noise_threshold).
+%   - compute noise auto-correlation function from these zones
+%   - whiten each channel in time with the inverse matrix sqrt of the auto-correlation
+%   - whiten across channels with inverse matrix sqrt of the covariance matrix.
+% Whitening parameters:
+%   - whitening.noise_threshold : rms signal magnitude (over channels) is 
+%     compared to this value to determine noise regions.
+%   - reg_const : a regularization constant, added to diagonal of measured covariance.
 
-data_pp = PreprocessTrace(filtdata, params);
+data_pp = WhitenNoise(filtdata, params);
 
-if (params.general.plot_diagnostics)
-    % taken from preproc/EstimateInitialWaveforms.m:
-    dataMag = sqrt(sum(data_pp.data .^ 2, 1));
-    nchan = size(filtdata.data,1);
-    chiMean = sqrt(2)*gamma((nchan+1)/2)/gamma(nchan/2);
-    chiVR = nchan - chiMean^2;
-    thresh = chiMean + params.clustering.threshold*sqrt(chiVR);
-    peakInds = dataMag(inds)> thresh;  
-    peakLen = params.clustering.peak_len;
-    if (isempty(peakLen)), peakLen=floor(params.general.waveform_len/2); end;
-    for i = -peakLen : peakLen
-        peakInds = peakInds & dataMag(inds) >= dataMag(inds+i);
-    end
-    peakInds = inds(peakInds);
-
-    figure(params.plotting.first_fig_num); subplot(3,1,3); cla
-    sigCol = [0.4 1 0.5];
-    hold on;
-    sh = patch(data.dt*[[1;1]*(peakInds-peakLen); [1;1]*(peakInds+peakLen)], ...
-          thresh*[-1;1;1;-1]*ones(1,length(peakInds)), sigCol,'EdgeColor',sigCol);
-    plot((inds-1)*data.dt, data_pp.data(:,inds)');
-    hold off
-    axis tight
-    title('Filtered & noise-whitened data')
-    legend('Segments exceeding threshold (putative spikes)');
-    
-    figure(params.plotting.first_fig_num+1); subplot(3,1,3);
-    dftMag = abs(fft(data_pp.data,[],2));
-    if (size(dftMag,1) > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;
-    plot(([1:maxDFTind]-1)/(maxDFTind*data.dt*2), dftMag(1:maxDFTind));
-    set(gca, 'Yscale', 'log'); axis tight; 
-    xlabel('frequency (Hz)'); ylabel('amplitude');
-    title('Fourier amplitude of filtered & noise-whitened data');
-    
-    figure(params.plotting.first_fig_num+2); clf
-    [N,X] = hist(dataMag, 100);
-    Nspikes = hist(dataMag(dataMag>thresh), X);
-    chi = 2*X.*chi2pdf(X.^2, nchan);
-    bar(X,N); set(gca,'Yscale','log'); 
-    yrg= get(gca, 'Ylim'); xrg= get(gca,'Xlim');
-    hold on; 
-    dh= bar(X,Nspikes); set(dh, 'FaceColor', sigCol);
-    ch= plot(X, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
-    hold off; set(gca, 'Ylim', yrg); 
-    title('Histogram of magnitudes of filtered & noise-whitened data');
-    legend([dh, ch], 'putative spikes', 'fitted chi2');
-end    
-
-% Diagnostics for whitening step:
+% Diagnostics for whitening:
 % Fig 4: original vs. whitened autocorrelation, which should be close to a delta
 %   function (1 at 0, 0 elsewhere).  If not, try increasing
-%   params.whitening.num_acf_lags.  If ACF is noisy, there may not be enough data
+%   params.whitening.num_acf_lags.  If auto-corrlation is noisy, there may not be enough data
 %   samples for estimation.  This can be improved by a. increasing
 %   params.whitening.noise_threshold (allow more samples) b. decreasing
 %   params.whitening.num_acf_lags c. decreasing params.whitening.min_zone_len (allow
 %   shorter noise zones)
-% Fig 5 (for multi-electrodes only): shows correlation across electrodes, which
-%   should be diagonal. If not, try the following: a. increasing
-%   params.whitening.num_acf_lags b. increasing params.whitening.min_zone_len Note
-%   that this trades off with the quality the estimates (see prev).
+% Fig 5 (for multi-electrodes only): cross-channel correlation, which should be
+%   diagonal. If not, a. increase params.whitening.num_acf_lags or b. increase
+%   params.whitening.min_zone_len .  Note that this trades off with the quality the
+%   estimates (see prev).
 % Fig 1: Highlighted segments of whitened data (green) will be used to estimate
-%   waveforms in the next step.  These should contain spikes, and non-highlighted
-%   regions should contain background noise.  
-% Fig 3: Histogram of magnitudes, and threshold used to identify segments.
-%   If spikes are in noise regions, lower params.whitening.threshold
+%   waveforms in the next step.  These should contain spikes (and non-highlighted
+%   regions should contain background noise).  
+% Fig 3, Top: Histograms of whitened channels - central portion should look
+% Gaussian. Bottom: Histogram of across-channel magnitude, with magnitudes of
+% highlighted segments in green.  If spikes are in noise regions, reduce params.whitening.threshold
 
 %% -----------------------------------------------------------------
 % Preprocessing Step 3: Estimate initial spike waveforms
 
 % Initialize spike waveforms:
-%  - gather all data windows with L2-norm larger than threshold
-%  - align spikes in these windows
+%  - collect data windows with L2-norm larger than params.clustering.spike_threshold
+%  - align peaks of these windows
 %  - Compute PCA on these segments
 %  - Perform K-means clustering in the subspace of the principal components
 %    accounting for params.clustering.percent_variance portion of the total variance.
-%
-%  Parameters:
+% Clustering parameters:
 %  - num_waveforms : number of cells to be recovered from data.
 %  - waveform_len : length (in samples) of spike waveforms.
-
+%  - threshold : threshold used to pick spike-containing data segments (in stdevs)
 %  - align_mode : During the clustering stage used to initialize spike waveforms,
 %       segments of the trace are identified using a threshold. These segments are
 %       then aligned based on this parameter. Supported values are:
@@ -286,14 +128,15 @@ fignum = params.plotting.first_fig_num+3;
 if (ishghandle(fignum+2)), close(fignum+2); end
 VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 
-% Diagnostics for waveform initialization: 
-% At this point, waveforms of all potential cells should be identified.  If not, may
-% need to adjust params.clustering.num_waveforms and re-run the clustering to identify
-% more/fewer cells.  May also wish to adjust the params.general.waveform_len,
-% increasing it if the waveforms (Fig 5) are being chopped off, or shortening it if
-% there is a substantial boundary region of silence.  If you do this, you should go
-% back and re-run starting from the whitening step, since the waveform_len affects
-% the identification of noise regions.
+% Diagnostics for clustering waveform initialization: 
+% At this point, waveforms of all potential cells should be identified (note that
+% missed or false positive spikes are irrelevant - only the WAVEFORMS matter).  If
+% not, may need to adjust params.clustering.num_waveforms and re-run the clustering
+% to identify more/fewer cells.  May also wish to adjust the
+% params.general.waveform_len, increasing it if the waveforms (Fig 5) are being
+% chopped off, or shortening it if there is a substantial boundary region of silence.
+% If you do this, you should go back and re-run starting from the whitening step,
+% since the waveform_len affects the identification of noise regions.
 
 %% -----------------------------------------------------------------
 % Preprocessing Step 4: partition data into snippets for improved efficiency of CBP
@@ -309,11 +152,9 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 fprintf('Partitioned signal into %d chunks\n', length(snippets));
 
 % Plot histogram of windowed norm of snippets versus "silences", and snippet lengths
-%**TODO: fix plotting for multi-electrodes
-if (params.general.plot_diagnostics)
+%**Busted for multiple electrodes?
+if (0)
     fignum1 = params.plotting.first_fig_num;
-    figsToClose = fignum1+[3:4];
-    close(figsToClose(ishghandle(figsToClose)));
     figure(fignum1+2); clf; 
     data_rms = sqrt(sum(data_pp.data .^ 2, 1));
     len = floor(params.general.waveform_len/2);
@@ -330,24 +171,16 @@ if (params.general.plot_diagnostics)
     hold off
     title('Histogram of windowed 2-norms');
     legend('all data', 'snippets', 'noise gaps');
-    
-   if (0)
-    figure(fignum1+3); clf;
-    snipLengths = cellfun(@(s) size(s,1), snippets);
-    [N, X] = hist(snipLengths,100);
-    bar(X,N); set(gca,'Yscale', 'log');
-    title('Histogram of partitioned segment durations');
-   end
-end
 
 % Diagnostics for data partitioning: 
 % Fig 3: Shouldn't see any large-amplitude content in the noise gaps.
+end
 
 %% -----------------------------------------------------------------
 % CBP setup
 
 % Close all preprocessing-related figures
-figNums = params.plotting.first_fig_num+[0:5];
+figNums = params.plotting.first_fig_num+[0:2];
 close(figNums(ishghandle(figNums)));
 
 % Fill in missing parameters
@@ -368,12 +201,14 @@ for i = 1 : num_waveforms
 end 
 
 % Prior expected firing rates
-params.cbp.firing_rates = 1e-3 .* ones(num_waveforms, 1);
+params.cbp.firing_rate = 1e-3 .* ones(num_waveforms, 1);
 
 % For picking template delta
 params.cbp.accuracy = 0.1;
 
-% Try single-spike soln first?
+% Try single-spike soln first, accepting if better than tolerance.  If most spikes
+% are isolated (no overlap with other spikes), this makes the code run 
+% much faster 
 params.cbp.compare_greedy = false; 
 params.cbp.greedy_p_value = 0; % tolerance to accept greedy soln
 % params.cbp.greedy_p_value = 1 - 1e-5;
@@ -424,6 +259,7 @@ starttime = tic;
 toc(starttime);
 
 % Histogram of windowed norm for data, whitened data, residual
+%** a mess for mulitple electrodes
 if (params.general.plot_diagnostics)
   data_recon = cell(size(snippets));
   for i = 1:numel(snippets)
@@ -517,8 +353,8 @@ end
 % has not yet converged.  Execute this and go back to re-run CBP:
 %     params.cbp_outer.init_features = waveforms
 
-%**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.  Allow user to increase/decrease 
-% number of waveforms.
+%**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.
+% Allow user to modify or increase/decrease number of waveforms.
 
 
 %% -----------------------------------------------------------------

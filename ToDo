@@ -6,10 +6,21 @@ INTERFACE/COSMETIC CHANGES:
 
 * Clear global variables
 
+* clean up figure windows.  Reuse those that are no longer needed ,but
+  try to keep similar content (so they dont' need to be
+  resized/positioned).
+
 * add figure size and position parameters to params.plotting
-* add scroll bars to data plots
+
+* add scroll bars to data plots - general interface for skipping to next "event"
+
+* demo script should run with diagnostics turned off, checking waveform convergence and repeating...
+
+* "snippet" -> "segment" ?
 
 * add to params.plotting: maxTracePlotLen, noiseCol, spikeCol
+* params.clustering.threshold -> params.clustering.spike_threshold 
+* params.partition.threshold -> params.partition.break_threshold 
 
 * Seems that matlabpool is being phased out, and parpool is taking its
   place.  We need to update the code accordingly...
@@ -17,19 +28,31 @@ INTERFACE/COSMETIC CHANGES:
 * Top-level function PreprocessTrace should probably be renamed WhitenTrace
   (but there's already another function with that name).
     
+* PreprocessTrace currently ignores p_norm parameter.  And shouldn't
+  the clustering code (EstimateInitialWaveform) have a p_norm
+  parameter, for determining spike-containing segments?
+
 * PreprocessTrace displays noise distribution before whitening, but
   the relevant distribution is AFTER whitening, since this is the data
   that will be used by CBP.  So, (1) modify CBP code to pay attention
   to the p-norm exponent, and then (2) show noise marginals AFTER
   whitening.
 
+* To prepare for waveform iteration, clustering centroids should be called initial_waveforms.
+
 * VisualizeClustering
   - display of waveforms/traces for multi-electrodes is confusing... Not sure how to fix
-  - Show a black asterisk at the current waveforms (centroids)
+  - use same y-axis scaling
   - give time in msec, not samples
   - show spike rates, in addition to total count
+  - Show a black asterisk at the current waveforms (centroids)
   - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
   - Give SNR, or d':  expected SDT error rate, given univariate Gaussian noise
+
+* After running clustering (or CBP), give options to:
+  merge cells (average two waveforms, reducing num_waveforms)
+  split cells (specify new centroids graphically, increase num_waveforms)
+  add a new (orthogonalized) random waveform
 
 * AmplitudeThresholdGUI:
   - give timescales in msec, not samples
@@ -44,15 +67,10 @@ INTERFACE/COSMETIC CHANGES:
    firing_rates parameter should be able to be set by default to a scalar (which is then replicated appropriately).
    num_features seems redundant with the initial waveforms.
 
-* After running CBP, provide GUI to click on amplitude, auto or
+* After running  CBP, provide GUI to click on amplitude, auto or
   cross-correlation and inspect the correpsonding data.  Specifically,
   user should be able to examine unusually large or small amplitude
   spikes, refractory violations, and synchrony artifacts.
-
-* after clustering or CBP run, give options to:
-  merge cells (average two waveforms, reduce num_waveforms)
-  split cells (specify new centroids graphically, increase num_waveforms)
-  add a new (orthogonalized) random waveform
 
 * Why are there two functions, evaluate_sorting and EvaluateSorting ?  Yuk.
 
@@ -70,25 +88,31 @@ SMALL ALGORITHMIC CHANGES:
   all times should be relative to that! But this requires
   computing/correcting filtering lags.
 
-* default waveform_len should take into account data.dt (around 8 msec)
-* default filter.freq should cover range of typical spike waveforms (in Hz)  
+* default waveform_len should take into account data.dt (waveforms typically 2-6 msec)
+* Use asymmetric window around peak for spike waveform.
+
+* default filter.freq should cover range of typical spike waveforms (in Hz).  Perhaps [100 5000]
+
+* filtering stage should also perform subsampling, if high freq limit is significantly below Nyquist
 
 * clustering.percent_variance should be chosen automatically, based on estimated SNR.
 
 * Improve consistency of thresholding tests for spikes/noise: 
   - Filtering section globally rescales data so that max(abs) is 1.
-    [should rescale each channel separately, so noise has same variance]
-  - Whitening section compares cross-channel norm (CCN) to noise_threshold to find noise regions
-     [should probably use an Lp norm with p>2, emphasizing peaks]
-  - Clustering section compares 4*std(CCN) to grab spike segments - where did this come from ??
-     [user should set a tolerable error rate (miss+fa), and provide a prior on firing rates, and this 
+    Shouldn't it rescale each channel separately, so noise has same variance?
+  - Whitening section compares cross-channel norm (CCN) to noise_threshold to find noise regions.
+    Should probably use an L2 norm over a few time bins, and Lp norm across channels with p>2.
+  - Originally, clustering section used 4*std(CCN) to grab spike segments - where did this come from ??
+    EPS changed to mnChi + thresh*stdevChi, where Chi is a chi distribution expected for the L2-norm of 
+    white noise across N channels
+    Preferred: User should set a tolerable error rate (miss+fa), and provide a prior on firing rates, and this  
       theshold should be chosen using standard SDT:
       T= (log(1-pr)-log(pr) + a^2/2)/a, where pr=prior chance of spike in dt, a=spike amplitude
-  - Partitioning (snippets) section: uses another threshold, and
+      eg: for error rate of 0.1%, with a prior of 1e-3, this is about 8.2 
+  - Partitioning (snippets) section: uses yet another threshold, and
      additionally relies on min_separation_length and min/max snippet
-     length parameters.  Choose partion_pars.threshold based on
-     sliding Lp-norm?  The threshold should be the minimum window
-     Lp-norm containing any overlap of any pair of waveforms. 
+     length parameters.  This should probably be again, an L2 norm over a few times bins, 
+     then combined in an Lp norm over channels.
 
 * CBP priors  (currently hard-coded) should at least be scaled with data.dt
   (i.e.,  spike prior = rate prior (spikes/sec) * data.dt (sec/sample))

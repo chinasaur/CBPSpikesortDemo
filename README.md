@@ -46,7 +46,7 @@ PRE-PROCESSING:
 
 (1) Temporal filtering.  Purpose is to eliminate low and high
 frequency noise, increasing the signal-to-noise ratio of the data,
-allowing crude initial spike finding by peak thresholding.
+and to allow crude initial spike finding by peak thresholding.
 
 (2) Noise whitening.  The CBP objective function is most easily and
 efficiently computed when the background noise is uncorrelated
@@ -55,12 +55,13 @@ electrodes is computed on low-amplitude portions of data.  The entire
 data array is then (separably) whitened by linearly transforming
 across electrodes, and filtering over time.
 
-(3) Estimate initial spike waveforms.  For this, we use a simple
-k-means clustering method.  Note: this NOT used to identify/estimate
-spikes - it is only used for waveform estimation.
+(3) Initialize spike waveforms.  For this, we use a simple k-means
+clustering method.  Note: this NOT used to identify/estimate spikes -
+it is only used to determine the number of cells, and to obtain
+initial estimates of their waveforms.
 
 (4) Partition data (optional).  To improve efficiency of the method
-(esp. when using multiple cores or machines), data array is
+(especially when using multiple cores or machines), the data array is
 partitioned into "snippets", separated by spike-free intervals.
 
 CBP SPIKE SORTING:

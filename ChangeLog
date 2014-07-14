@@ -1,3 +1,14 @@
+2014-07-14  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/load_raw_data.m -> LoadRawData.m
+	* spikesort_demo/preproc/PreprocessTrace.m -> WhitenNoise.m
+	
+	* spikesort_demo/spikesort_demo_setup.m: 
+	Switched matlabpool calls to use parpool (matlabpool is being discontinued)
+
+	* spikesort_demo/cbp_spikesort_demo_script.m (params): 
+	Moved plotting code into functions LoadRawData, FilterData, and PreprocessTrace
+
 2014-07-06  Eero Simoncelli  <eero@elvira.cns.nyu.edu>
 
 	* spikesort_demo/load_default_parameters.m (adjust_wfsize_fn): 
