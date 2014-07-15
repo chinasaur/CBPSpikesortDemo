@@ -10,14 +10,14 @@ function [snippets, breaks, snippet_lens, snippet_centers, IDX] = ...
 % signal : channel x time matrix (input)
 %
 % pars : struct with fields:
-%   threshold : threshold to use on the root-mean-squared value of signal
+%   silence_threshold : threshold to use on the root-mean-squared value of signal
 %               (across channels) to be considered activity 
 %               (should be noise-dependent)
 %
 %   smooth_len : length of moving average to smooth the signal RMS before 
 %                thresholding.
 %
-%   min_separation_len : minimum width (in samples) required to be considered a
+%   min_silence_len : minimum width (in samples) required to be considered a
 %                       dead zone (should depend on autocorrelation width of
 %                       waveform)
 %
@@ -50,8 +50,8 @@ signal_rms = smooth(sqrt(sum(signal .^ 2, 1)), pars.smooth_len);
 dof = size(signal,1);
 chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);  
 chiVR = dof - chiMean^2;
-rms_above_thresh = signal_rms > (chiMean + pars.threshold*sqrt(chiVR));
-dead_zone_idx = FindConsecutiveZeroes(rms_above_thresh, pars.min_separation_len);
+rms_above_thresh = signal_rms > (chiMean + pars.silence_threshold*sqrt(chiVR));
+dead_zone_idx = FindConsecutiveZeroes(rms_above_thresh, pars.min_silence_len);
                                                                    
 % Find the "islands of 1's" in dead_zone_idx
 IDX = bwconncomp(~dead_zone_idx);
@@ -71,7 +71,7 @@ parfor i = 1 : num_snippets
     if (length(idx) > pars.max_snippet_len)
         warning('WARNING: snippet length %d exceeds maximum (%d)!\n', ...
                 length(idx), pars.max_snippet_len);
-        warning('Consider raising threshold and/or decreasing the min_separation_len\n');
+        warning('Consider raising threshold and/or decreasing the min_silence_len\n');
     end
         
     % If the snippet is too small, widen the borders by appropriate size

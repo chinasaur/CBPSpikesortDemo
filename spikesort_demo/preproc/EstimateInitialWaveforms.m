@@ -27,11 +27,8 @@ data_rms = sqrt(sum(data .^ 2, 1));
 
 % Clustering parameters
 %threshold = 4 * median(data_rms) ./ 0.6745; % robust
-%threshold = 4 * std(data_rms);  %** Don't know where this came from
-dof = size(data,1);
-chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
-chiVR = dof - chiMean^2;
-threshold = chiMean + pars.threshold*sqrt(chiVR);
+%threshold = 4 * std(data_rms);  %**EPS: Don't know where this came from
+threshold = pars.spike_threshold;
 
 % Identify time indices of candidate peaks.
 peak_idx = FindPeaks(data_rms(:), threshold, pars);
@@ -84,7 +81,7 @@ Xproj = Xproj(:, sorted_idx);
 % Figure out how many PCs we need to account for
 % the desired percent of total variance
 cutoff = find(cumsum(latent) ./ sum(latent) * 100 > ...
-    percent_variance, 1);
+    percent_variance, 1)
 npcs = max(2, cutoff);
 fprintf('%d PCs account for %.2f percent variance\n', ...
     npcs, percent_variance);

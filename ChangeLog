@@ -1,8 +1,20 @@
+2014-07-15  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/preproc/plotting/VisualizeClustering.m (nh): 
+	got rid of the second fignum argument (always make them consecutive)
+	added threshold argument 
+
+	* spikesort_demo/preproc/PartitionSignal.m (snippet_centers): 
+	partition.threshold -> partition.silence_threshold
+	partition.min_separation_len -> partition.min_silence_len
+	
+	* spikesort_demo/preproc/EstimateInitialWaveforms.m (threshold): 
+	Changed to just use threshold as is (compared directly to rms over channels);
+	* spikesort_demo/load_default_parameters.m (adjust_wfsize_fn): 
+	clustering.threshold -> clustering.spike_threshold,  value changed to 6
+	
 2014-07-14  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
-	* spikesort_demo/load_raw_data.m -> LoadRawData.m
-	* spikesort_demo/preproc/PreprocessTrace.m -> WhitenNoise.m
-	
 	* spikesort_demo/spikesort_demo_setup.m: 
 	Switched matlabpool calls to use parpool (matlabpool is being discontinued)
 

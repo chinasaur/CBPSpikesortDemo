@@ -1,4 +1,4 @@
-function VisualizeClustering(XProj, assignments, X, nchan, fig1, fig2, marker)
+function VisualizeClustering(XProj, assignments, X, nchan, fig1, threshold, marker)
 
 % XProj : snippet x PC-component matrix of projections
 % assignments : vector of class assignments
@@ -6,8 +6,10 @@ function VisualizeClustering(XProj, assignments, X, nchan, fig1, fig2, marker)
 if (~exist('fig1', 'var'))
     fig1 = figure;
 end
-if (~exist('fig2', 'var'))
+if (~exist('fig1', 'var'))
     fig2 = figure;
+else
+  fig2 = fig1+1;
 end
 if (~exist('marker', 'var'))
     marker = '.';
@@ -37,12 +39,8 @@ yl = get(gca, 'YLim');
 plot([0 0], yl, '-', 'Color', 0.8 .* [1 1 1]);
 plot(xl, [0 0], '-', 'Color', 0.8 .* [1 1 1]);
 th=linspace(0, 2*pi, 64);
-dof = 2;
-chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
-chiVR = dof - chiMean^2;
-rad= chiMean + 4*sqrt(chiVR); 
-nh= plot(rad*sin(th),rad*cos(th), 'k', 'LineWidth', 2);
-legend(nh,'noise, 3.9 stdevs');
+nh= plot(threshold*sin(th),threshold*cos(th), 'k', 'LineWidth', 2);
+legend(nh,sprintf('noise threshold = %.1f',threshold));
 axis equal
 hold off
 

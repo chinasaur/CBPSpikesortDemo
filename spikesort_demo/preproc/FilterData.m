@@ -34,7 +34,7 @@ datastruct.processing{end+1} = log;
 
 % Plot filtered data, Fourier amplitude, and histogram of magnitudes
 if (params.general.plot_diagnostics)
-    % copied from PreprocessTrace:
+    % copied from WhitenNoise:
     dataMag = sqrt(sum(datastruct.data .^ 2, 1));
     nchan = datastruct.nchan;
     thresh = params.whitening.noise_threshold;

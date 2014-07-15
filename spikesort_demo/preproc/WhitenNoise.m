@@ -114,14 +114,45 @@ if (0) %Old display code: unnecessary since this is plotted in FilterData.m
 end
 
 
+% Visualization of whitening effects
+if (gen_pars.plot_diagnostics)
+    figure(params.plotting.first_fig_num+3); clf
+    nr = ceil(sqrt(nchan));    
+    tax = (0 : dt : (length(old_acfs{1}) - 1) * dt)' .* 1e3;
+    for chan = 1 : nchan
+        subplot(nr, nr, chan);        
+        plot(tax, [old_acfs{chan}, whitened_acfs{chan}], ...
+              '.-', 'LineWidth', 1, 'MarkerSize', 14);        
+        set(gca, 'FontSize', font_size);
+        xlabel('time lag (ms)');
+        ylabel('autocorrelation');
+        legend('original', 'whitened');
+        hold on; plot([tax(1), tax(end)], [0 0], 'k-');
+        title(sprintf('Channel %d', chan));
+    end
+    if (nchan > 1.5)
+      figure(params.plotting.first_fig_num+4); clf
+      subplot(1, 2, 1), imagesc(old_cov); 
+      colormap(gray); axis equal; axis tight;
+      set(gca, 'FontSize', font_size); 
+      title('Orig. cross-channel covariance');
+      xlabel('channel');    ylabel('channel');
+      set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
+      subplot(1, 2, 2), imagesc(whitened_cov); 
+      colormap(gray); axis equal; axis tight;
+      set(gca, 'FontSize', font_size);
+      xlabel('channel');
+      title('Whitened cross-channel covariance');    
+      set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
+    end
+end
+
+% visualization of whitened data, FFT, and histograms
 if (params.general.plot_diagnostics)
     inds = params.plotting.dataPlotInds;
     % copied from preproc/EstimateInitialWaveforms.m:
     dataMag = sqrt(sum(whitedatastruct.data .^ 2, 1));
-    nchan = whitedatastruct.nchan;
-    chiMean = sqrt(2)*gamma((nchan+1)/2)/gamma(nchan/2);
-    chiVR = nchan - chiMean^2;
-    thresh = chiMean + params.clustering.threshold*sqrt(chiVR);
+    thresh = params.clustering.spike_threshold;
     peakInds = dataMag(inds)> thresh;  
     peakLen = params.clustering.peak_len;
     if (isempty(peakLen)), peakLen=floor(params.general.waveform_len/2); end;
@@ -156,10 +187,11 @@ if (params.general.plot_diagnostics)
     X=linspace(-mx,mx,100);
     N=hist(whitedatastruct.data',X);
     plot(X,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
-    hold on; 
+    hold on;
     gh=plot(X, max(N(:))*exp(-(X.^2)/2), 'r', 'LineWidth', 2); 
-    hold off; set(gca,'Ylim',rg); 
-    title('Histogram(s) of filtered/whitened channel(s)');
+    plot(X,N); set(gca,'Ylim',rg);
+    hold off; 
+    title('Histogram(s), filtered/whitened channel(s)');
     legend(gh, 'Univariate Gaussian');
     subplot(2,1,2);
     [N,X] = hist(dataMag, 100);
@@ -171,43 +203,10 @@ if (params.general.plot_diagnostics)
     dh= bar(X,Nspikes); set(dh, 'FaceColor', sigCol);
     ch= plot(X, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
     hold off; set(gca, 'Ylim', yrg); 
-    title('Histogram, magnitudes of filtered/whitened data');
+    title('Histogram, magnitude over filtered/whitened channel(s)');
     legend([dh, ch], 'putative spikes', 'chi-distribution for white noise');
 end    
 
-
-% Visualization of whitening effects
-if (gen_pars.plot_diagnostics)
-    figure(params.plotting.first_fig_num+3); clf
-    nr = ceil(sqrt(nchan));    
-    tax = (0 : dt : (length(old_acfs{1}) - 1) * dt)' .* 1e3;
-    for chan = 1 : nchan
-        subplot(nr, nr, chan);        
-        plot(tax, [old_acfs{chan}, whitened_acfs{chan}], ...
-              '.-', 'LineWidth', 1, 'MarkerSize', 14);        
-        set(gca, 'FontSize', font_size);
-        xlabel('time lag (ms)');
-        ylabel('autocorrelation');
-        legend('original', 'whitened');
-        hold on; plot([tax(1), tax(end)], [0 0], 'k-');
-        title(sprintf('Channel %d', chan));
-    end
-    if (nchan > 1.5)
-      figure(params.plotting.first_fig_num+4); clf
-      subplot(1, 2, 1), imagesc(old_cov); 
-      colormap(gray); axis equal; axis tight;
-      set(gca, 'FontSize', font_size); 
-      title('Orig. cross-channel covariance');
-      xlabel('channel');    ylabel('channel');
-      set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
-      subplot(1, 2, 2), imagesc(whitened_cov); 
-      colormap(gray); axis equal; axis tight;
-      set(gca, 'FontSize', font_size);
-      xlabel('channel');
-      title('Whitened cross-channel covariance');    
-      set(gca, 'XTick', 1 : nchan, 'YTick', 1 : nchan);
-    end
-end
 
 %% -----------------------------------------------------------------
 %% Whitening routines

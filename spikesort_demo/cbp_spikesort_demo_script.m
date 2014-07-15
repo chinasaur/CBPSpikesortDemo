@@ -14,18 +14,19 @@ spikesort_demo_setup(pwd());
 %% -----------------------------------------------------------------
 % Step 0: Load raw electrode data
 
-params = LoadDefaultParameters();
-
 % Load an example data set, including raw data, the timestep, and (optionally) ground
 % truth spike times.
 
-% Simulated data: single electrode.
-% From: Quiroga et. al., Neural Computation, 16:1661-1687, 2004.
-[data, params] = LoadRawData('Quiroga1', params);
+% Simulated data: Single electrode, from: Quiroga et. al., Neural Computation,
+% 16:1661-1687, 2004:
+datasetName = 'Quiroga1';
 
-% Real data: tetrode + one ground-truth intracellular electrode, rat hippocampus
-% From: Harris et. al., J. Neurophysiology, 84:401-414, 2000.
-% [data, params] = LoadRawData('Harris1', params);
+% Real data: Tetrode + one ground-truth intracellular electrode, rat hippocampus,
+% from: Harris et. al., J. Neurophysiology, 84:401-414, 2000:  
+% datasetName = 'Harris1';
+
+params = load_default_parameters();
+[data, params] = load_raw_data(datasetName, params);
 
 %% -----------------------------------------------------------------
 % Preprocessing Step 1: Temporal filtering
@@ -74,13 +75,13 @@ filtdata = FilterData(data, params);
 data_pp = WhitenNoise(filtdata, params);
 
 % Diagnostics for whitening:
-% Fig 4: original vs. whitened autocorrelation, which should be close to a delta
+% Fig 4: original vs. whitened autocorrelation(s), which should be close to a delta
 %   function (1 at 0, 0 elsewhere).  If not, try increasing
-%   params.whitening.num_acf_lags.  If auto-corrlation is noisy, there may not be enough data
-%   samples for estimation.  This can be improved by a. increasing
+%   params.whitening.num_acf_lags.  If auto-corrlation is noisy, there may not be
+%   enough data samples for estimation.  This can be improved by a. increasing
 %   params.whitening.noise_threshold (allow more samples) b. decreasing
 %   params.whitening.num_acf_lags c. decreasing params.whitening.min_zone_len (allow
-%   shorter noise zones)
+%   shorter noise zones).
 % Fig 5 (for multi-electrodes only): cross-channel correlation, which should be
 %   diagonal. If not, a. increase params.whitening.num_acf_lags or b. increase
 %   params.whitening.min_zone_len .  Note that this trades off with the quality the
@@ -95,13 +96,13 @@ data_pp = WhitenNoise(filtdata, params);
 %% -----------------------------------------------------------------
 % Preprocessing Step 3: Estimate initial spike waveforms
 
-% Initialize spike waveforms:
+% Initialize spike waveforms using clustering:
 %  - collect data windows with L2-norm larger than params.clustering.spike_threshold
 %  - align peaks of these windows
-%  - Compute PCA on these segments
+%  - Perform PCA on these segments
 %  - Perform K-means clustering in the subspace of the principal components
 %    accounting for params.clustering.percent_variance portion of the total variance.
-% Clustering parameters:
+% Parameters:
 %  - num_waveforms : number of cells to be recovered from data.
 %  - waveform_len : length (in samples) of spike waveforms.
 %  - threshold : threshold used to pick spike-containing data segments (in stdevs)
@@ -115,18 +116,16 @@ data_pp = WhitenNoise(filtdata, params);
 %       For example, if the spike waveforms always have large positive (negative)
 %       peaks, use max (min).
 
-% clear filtdata; % Recover some memory: don't need this any more
-
 [centroids, assignments, X, XProj, PCs, snippet_centers_cl] = ...
     EstimateInitialWaveforms(data_pp, params);
 
-% For later comparison to the CBP results, also grab the spike times
-% corresponding to the segments assigned to each cluster:
+% For later comparisons, also compute spike times corresponding to the segments
+% assigned to each cluster:
 spike_times_cl = GetSpikeTimesFromAssignments(snippet_centers_cl, assignments);
 
-fignum = params.plotting.first_fig_num+3;
-if (ishghandle(fignum+2)), close(fignum+2); end
-VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
+VisualizeClustering(XProj, assignments, X, data_pp.nchan, ...
+		    params.plotting.first_fig_num+3, ...
+		    params.clustering.spike_threshold);
 
 % Diagnostics for clustering waveform initialization: 
 % At this point, waveforms of all potential cells should be identified (note that
@@ -139,7 +138,7 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
 % since the waveform_len affects the identification of noise regions.
 
 %% -----------------------------------------------------------------
-% Preprocessing Step 4: partition data into snippets for improved efficiency of CBP
+% CBP setup
 
 % Partition data into snippets, separated by "noise zones" in which the RMS of the
 % waveforms does not surpass "threshold" for at least "min_separation_len"
@@ -151,37 +150,9 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, fignum,fignum+1);
     PartitionSignal(data_pp.data, params.partition);
 fprintf('Partitioned signal into %d chunks\n', length(snippets));
 
-% Plot histogram of windowed norm of snippets versus "silences", and snippet lengths
-%**Busted for multiple electrodes?
-if (0)
-    fignum1 = params.plotting.first_fig_num;
-    figure(fignum1+2); clf; 
-    data_rms = sqrt(sum(data_pp.data .^ 2, 1));
-    len = floor(params.general.waveform_len/2);
-    wnAll = windowed_norm(data_rms, len);
-    wnSnip = cellfun(@(s) windowed_norm(s', len), snippets, 'UniformOutput', false);
-    wnBreak = windowed_norm(cell2mat(breaks')', len);
-    [N,X] = hist(wnAll, 100);
-    snipHist = hist(cell2mat(wnSnip')', X);
-    breakHist = hist(wnBreak, X);
-    bar(X,N); set (gca,'Yscale', 'log');
-    hold on;
-    plot(X, snipHist, 'g', 'LineWidth', 2);
-    plot(X, breakHist, 'r', 'LineWidth', 2);
-    hold off
-    title('Histogram of windowed 2-norms');
-    legend('all data', 'snippets', 'noise gaps');
-
-% Diagnostics for data partitioning: 
-% Fig 3: Shouldn't see any large-amplitude content in the noise gaps.
-end
-
-%% -----------------------------------------------------------------
-% CBP setup
-
-% Close all preprocessing-related figures
-figNums = params.plotting.first_fig_num+[0:2];
-close(figNums(ishghandle(figNums)));
+%*** Close all preprocessing-related figures
+%figNums = params.plotting.first_fig_num+[0:2];
+%close(figNums(ishghandle(figNums)));
 
 % Fill in missing parameters
 if (isempty (params.cbp.num_features))
@@ -239,7 +210,7 @@ params.cbp.lambda = reweight_exp(:); % multiplier for sparsity weight
 % for inferring the spikes. Theoretically, the new weight for a coefficient
 % x should be set to -d/dz(log(P(z)))|z=x where P(z) is the prior density
 % on the spike amplitudes. Here we employ a power-law distribution for 
-% 0 <= x <= M with exponent=reweight_exp and offset=eps
+% 0 <= x <= M with exponent=reweight_exp and offset=eps1
 params.cbp.reweight_fn = cell(num_waveforms, 1);
 for i = 1 : num_waveforms
     params.cbp.reweight_fn{i} = @(x) reweight_exp(i) ./ (eps + abs(x));    

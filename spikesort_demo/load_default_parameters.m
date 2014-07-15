@@ -23,7 +23,7 @@ whitening.min_zone_len    = [];    % minimum duration of a noise zone
 				   % used for covariance estimation. Empty => use general.waveform_len/2
 
 clustering.num_waveforms    = 3;    % Number of cells
-clustering.threshold        = 8;    % threshold for picking spike-containing intervals (in stdevs))
+clustering.spike_threshold  = 6;    % threshold for picking spike-containing intervals (in stdevs))
 clustering.window_len       = [];   % empty =>  use general.waveform_len
 clustering.peak_len         = [];   % empty =>  use 0.5*window_len
 clustering.percent_variance = 90;   % criteria for choosing # of PCs to retain
@@ -31,7 +31,7 @@ clustering.upsample_fac     = 5;    % upsampling factor
 clustering.smooth_len       = 5;    % smoothing factor (in upsampled space)
 clustering.downsample_after_align = true; % downsample after aligning
 
-partition.threshold          = 3;  % threshold for silent 'break' regions (in stdevs)
+partition.silence_threshold  = 3;  % threshold for silent 'break' regions (in stdevs)
 partition.smooth_len         = 1;
 partition.min_separation_len = floor(general.waveform_len/2);
 partition.min_snippet_len    = general.waveform_len;

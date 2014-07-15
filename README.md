@@ -39,41 +39,47 @@ code, as well as a ToDo list.
 =====================================================================================
 OUTLINE OF METHOD:
 
-(0) Load raw data, stored in an array containing electrode voltages over
-time.  Sampling rate should be at least 5kHz.
+(0) Load raw data, stored in an array containing electrode voltages
+(each row is a separate electrode).  Sampling rate should be at least
+5kHz.
 
 PRE-PROCESSING:
 
-(1) Temporal filtering.  Purpose is to eliminate low and high
-frequency noise, increasing the signal-to-noise ratio of the data,
-and to allow crude initial spike finding by peak thresholding.
+(1) Filter. Purpose is to eliminate low and high frequency noise
+(increasing the signal-to-noise ratio of the data) and to allow
+isolation of noise regions (for whitening, step 2) by thresholding.
 
-(2) Noise whitening.  The CBP objective function is most easily and
+(2) Whiten noise.  The CBP objective function is most easily and
 efficiently computed when the background noise is uncorrelated
 (white), over both time and electrodes.  Covariance over time and
 electrodes is computed on low-amplitude portions of data.  The entire
 data array is then (separably) whitened by linearly transforming
 across electrodes, and filtering over time.
 
-(3) Initialize spike waveforms.  For this, we use a simple k-means
-clustering method.  Note: this NOT used to identify/estimate spikes -
-it is only used to determine the number of cells, and to obtain
-initial estimates of their waveforms.
-
-(4) Partition data (optional).  To improve efficiency of the method
-(especially when using multiple cores or machines), the data array is
-partitioned into "snippets", separated by spike-free intervals.
+(3) Select number of cells, and initialize spike waveforms.  Initial
+waveforms are obtained from the centroids of k-means clustering in a
+principal components space. Note: this NOT used to identify/estimate
+spikes - it is only used to determine the number of cells, and to
+obtain initial estimates of their waveforms.
 
 CBP SPIKE SORTING:
 
-(5) Use CBP to estimate spike times associated with each waveform.
+(4) Partition data into segments (optional).  To improve efficiency
+(especially when using multiple cores or machines), the data array is
+partitioned into "snippets", separated by spike-free intervals.
 
-(6) Re-estimate waveforms.  If changes are substantial, or if results
-show unacceptable refractory violations or notches in
-cross-correlograms, repeat from step (5).
+(5) Use CBP (see article listed above) to estimate amplitudes/times of
+spikes associated with each waveform.
+
+(6) Decide on which spikes to keep/discard, by thresholding the
+recovered amplitudes.
+
+(7) Re-estimate waveforms (given the spike times, this is a simple
+regression problem).  If changes are substantial, repeat from step (5)
+until convergence.
 
 POST-PROCESSING:
 
-(7) Compare CBP results to Clustering.  If ground truth (true spikes)
-are available, compare to these as well.
+(8) Compare CBP results to Clustering, and ground truth (true spikes, if available).
+
 =====================================================================================
