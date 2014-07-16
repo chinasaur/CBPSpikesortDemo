@@ -1,6 +1,11 @@
+2014-07-16  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/preproc/PartitionSignal.m (signal_rms): 
+	fixed bug introduced yesterday when changing parameterization...
+	
 2014-07-15  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
-	* spikesort_demo/preproc/plotting/VisualizeClustering.m (nh): 
+	* spikesort_demo/preproc/plotting/VisualizeClustering.m: 
 	got rid of the second fignum argument (always make them consecutive)
 	added threshold argument 
 
@@ -9,9 +14,10 @@
 	partition.min_separation_len -> partition.min_silence_len
 	
 	* spikesort_demo/preproc/EstimateInitialWaveforms.m (threshold): 
-	Changed to just use threshold as is (compared directly to rms over channels);
-	* spikesort_demo/load_default_parameters.m (adjust_wfsize_fn): 
-	clustering.threshold -> clustering.spike_threshold,  value changed to 6
+	-> Changed to just use threshold as is (compared directly to rms over channels);
+	
+	* spikesort_demo/load_default_parameters.m: 
+	-> clustering.threshold -> clustering.spike_threshold,  value changed to 6
 	
 2014-07-14  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
@@ -43,7 +49,7 @@
 2014-07-05  Eero Simoncelli  <eero@elvira.cns.nyu.edu>
 
 	* spikesort_demo/load_raw_data.m: 
-	Changed default Quiroga filtering.freq back to []
+	-> Changed default Quiroga filtering.freq back to []
 
 	Current results on Quiroga dataset 1, with waveforms re-fit twice,
 	and threshold of cell 1 slightly hand-adjusted to eliminate
@@ -77,7 +83,7 @@
 	plot noise ball
 
 	* spikesort_demo/preproc/EstimateInitialWaveforms.m (threshold): 
-	>>> changed threshold for choosing segments for clustering  to 
+	-> changed threshold for choosing segments for clustering  to 
 	mean + 4*std of a chi distribution (about 3.9)
 
 	* ToDo and ChangeLog:  moved to main directory
@@ -100,7 +106,7 @@
 2014-07-01  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
 	* load_data_defaults.m: 
-	-added 100Hz cutoff to Quiroga dataset
+	-> added 100Hz cutoff to Quiroga dataset
 
 	* cbp_spikesort_demo_script.m (dataMag): 
 	- indicate filtering cutoffs in frequency plot
