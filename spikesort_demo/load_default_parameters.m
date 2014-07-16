@@ -33,7 +33,7 @@ clustering.downsample_after_align = true; % downsample after aligning
 
 partition.silence_threshold  = 3;  % threshold for silent 'break' regions (in stdevs)
 partition.smooth_len         = 1;
-partition.min_separation_len = floor(general.waveform_len/2);
+partition.min_silence_len    = floor(general.waveform_len/2);
 partition.min_snippet_len    = general.waveform_len;
 partition.max_snippet_len    = 1001;   % not enforced, only warnings
 partition.min_pad_size       =  5;
@@ -65,6 +65,8 @@ cbp.debug_mode = false;  % debug mode
 cbp.num_reweights = 1e3;  % MAX number of IRL1 iterations
 cbp.magnitude_threshold = 1e-2; % amplitude threshold for deleting spikes
 cbp.parfor_chunk_size = Inf;  % parallelization chunk size
+cbp.accuracy = 0.1; % For picking sampling grid for waveforms
+
 
 params.general      = general;
 params.plotting     = plotting;

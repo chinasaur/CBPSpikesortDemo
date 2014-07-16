@@ -47,10 +47,11 @@ function [snippets, breaks, snippet_lens, snippet_centers, IDX] = ...
 signal_rms = smooth(sqrt(sum(signal .^ 2, 1)), pars.smooth_len);
 
 % Identify dead zones
-dof = size(signal,1);
-chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);  
-chiVR = dof - chiMean^2;
-rms_above_thresh = signal_rms > (chiMean + pars.silence_threshold*sqrt(chiVR));
+%dof = size(signal,1);
+%chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);  
+%chiVR = dof - chiMean^2;
+%rms_above_thresh = signal_rms > (chiMean + pars.silence_threshold*sqrt(chiVR));
+rms_above_thresh = pars.silence_threshold;
 dead_zone_idx = FindConsecutiveZeroes(rms_above_thresh, pars.min_silence_len);
                                                                    
 % Find the "islands of 1's" in dead_zone_idx

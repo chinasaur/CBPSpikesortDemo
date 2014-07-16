@@ -174,9 +174,6 @@ end
 % Prior expected firing rates
 params.cbp.firing_rate = 1e-3 .* ones(num_waveforms, 1);
 
-% For picking template delta
-params.cbp.accuracy = 0.1;
-
 % Try single-spike soln first, accepting if better than tolerance.  If most spikes
 % are isolated (no overlap with other spikes), this makes the code run 
 % much faster 

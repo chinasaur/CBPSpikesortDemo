@@ -4,36 +4,29 @@ INTERFACE/COSMETIC CHANGES:
 * cosmetic: unify underscores and capitalization in naming, at least
   for top-level (user-called) functions and variables!
 
-* Clear global variables
-
-* clean up figure windows.  Reuse those that are no longer needed ,but
-  try to keep similar content (so they dont' need to be
-  resized/positioned).
-
-* demo script should run with diagnostics turned off, checking waveform convergence and repeating...
-
 * add figure size and position parameters to params.plotting
 
 * add scroll bars to data plots - general interface for skipping to next "event"
 
-* "snippet" -> "segment" ?
+* demo script should run with diagnostics turned off, checking waveform convergence and repeating...
+
+* Unify wording.  "snippet" -> "segment" ?
 
 * add to params.plotting: maxTracePlotLen, noiseCol, spikeCol
 
-* PreprocessTrace currently ignores p_norm parameter.  And shouldn't
-  the clustering code (EstimateInitialWaveform) have a p_norm
-  parameter, for determining spike-containing segments?
+* PreprocessTrace currently ignores p_norm parameter.  
 
 ** To prepare for waveform iteration, clustering centroids should be called initial_waveforms.
 
 * VisualizeClustering
   - display of waveforms/traces for multi-electrodes is confusing... Not sure how to fix
-  - use same y-axis scaling
-  - give time in msec, not samples
-  - show spike rates, in addition to total count
-  - Show a black asterisk at the current waveforms (centroids)
+  -- use same y-axis scaling
+  -- give time in msec, not samples
+  -- show spike rates, in addition to total count
+  -- Show a black asterisk at the current waveforms (centroids)
   - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
-  - Give SNR, or d':  expected SDT error rate, given univariate Gaussian noise
+  -- for waveforms, give expected MISS+FP rate, given univariate Gaussian noise
+  - also give probability of mistaking each waveform for the others
 
 * After running clustering (or CBP), give options to:
   merge cells (average two waveforms, reducing num_waveforms)
@@ -41,28 +34,29 @@ INTERFACE/COSMETIC CHANGES:
   add a new (orthogonalized) random waveform
 
 * AmplitudeThresholdGUI:
-  - can't set these thresdholds without seeing waveforms!  PC-space scatter plot also useful
-  - give timescales in msec, not samples
-  - show total spike counts (and rate) for each cell. 
-  - clicking escape key should exit, LEAVING WINDOW ON SCREEN!
-  - for cross-correlations, make time bins roughly the width of the main portion of the waveforms (0.5msec?)
+ -- can't set these thresdholds without seeing current waveforms!  
+    PC-space scatter plot also useful
+ -- give timescales in msec, not samples
+ -- show total spike counts (and rate) for each cell. 
+ -- make cross-corr time bins  the width of the main lobe of the waveforms (0.5msec?)
      ( for easy discernment of synchrony artifacts).
-  - if general.plot_diagnostics is false, should just choose auto values
+ -- if general.plot_diagnostics is false,  just choose auto values
+  - allow choosing multiple thresholds (for cells with different amplitudes)
 
 * CBP: initial waveforms should not be parameters, but arguments to function.
    firing_rates parameter should be able to be set by default to a scalar (which is then replicated appropriately).
    num_features parameter seems redundant, since we're setting initial waveforms.
 
-* After running  CBP, provide GUI to click on amplitude, auto or
-  cross-correlation and inspect the correpsonding data.  Specifically,
-  user should be able to examine unusually large or small amplitude
-  spikes, refractory violations, and synchrony artifacts.
+** Need to refine the GUI for inspecting spike-sorting results.
+  Specifically, user should be able to jump to unusually large or
+  small amplitude spikes, refractory violations, cross-corr (synchrony)
+  artifacts, or mis-matches between two sorters (or sorter and ground truth).
 
 * Why are there two functions, evaluate_sorting and EvaluateSorting ?  Yuk.
 
 * In ground truth analysis, maybe state something like:
   "Found <Hit> of <Hit+Miss> true spikes, missed <Miss> (XX.X%), and misreported <FA> (**%) false positives"
-   Standard to report: Recall: Hit/(Hit+Miss),  Precision: Hit/(Hit+FA) 
+   It's standard to report: Recall: Hit/(Hit+Miss),  Precision: Hit/(Hit+FA) 
 
 * Display stats in ground truth comparison figures (preserved if we try
   again with different params, increasing the starting figure number) ?
@@ -70,25 +64,32 @@ INTERFACE/COSMETIC CHANGES:
 %% -----------------------------------------------------------------
 SMALL ALGORITHMIC CHANGES:
 
-* In filtering step, global re-scaling should set max of cross-channel
+** In filtering step, global re-scaling should set max of cross-channel
   magnitude to 1, not individual channel max, since the thresholding
   in the next (whitening) step is done on cross-channel magnitude!
+
+* waveform_len should be expressed in msec (waveforms typically 2-6 msec)
+
+** CBP firing_rate prior should be expressed in Hz (not prob per spike bin!)
+
+** set default filter.freq for typical spike waveforms (in Hz).  
+  Perhaps [100 5000]?
+
+* filtering stage should also perform subsampling, if high freq limit is significantly below Nyquist 
+
+* filtering.pad doesn't need to be a parameter.  Left side should be
+  padded by filtering.order, and right side needs order+waveform_len,
+  and a bit more for IIR filtering.
+
+* Use asymmetric window around peak for spike waveform.
 
 * Data file should include a t0 (time of initial sample, in sec) and
   all times should be relative to that! But this requires
   computing/correcting filtering lags.
 
-* default waveform_len should take into account data.dt (waveforms typically 2-6 msec)
+* Clustering: number of PC's should be set using a better statistical criterion than percent_variance: noise is supposed to be univariate and Gaussian!   
 
-* Use asymmetric window around peak for spike waveform.
-
-* default filter.freq should cover range of typical spike waveforms (in Hz).  Perhaps [100 5000]?
-
-* filtering stage should also perform subsampling, if high freq limit is significantly below Nyquist
-
-* Clustering:number of PC's should be set using a statistical criterion: noise is supposed to be whitened!  
-
-* Improve consistency of thresholding tests for spikes/noise: 
+* Improve consistency of thresholding tests for spikes/noise. 
   - Filtering section globally rescales data so that max(abs) is 1.
     Should probably rescale each channel separately, to try to ensure noise has same variance.
   - Whitening section compares cross-channel norm (CCN) to noise_threshold to find noise regions.
@@ -109,14 +110,6 @@ SMALL ALGORITHMIC CHANGES:
   correctly, (2) Choose automatic thresholds by fitting a mixture of gaussians to the
   recovered amplitudes.
 
-* CBP priors (currently hard-coded) should at least be given in spikes/sec, and then
-  scaled with data.dt (i.e., spike prior = rate prior (spikes/sec) * data.dt
-  (sec/sample)) Perhaps incorporate number of spikes found by initial clustering?
-
-* filtering.pad doesn't need to be a parameter.  Left side should be
-  padded by filtering.order, and right side needs order+waveform_len,
-  and a bit more for IIR filtering.
-
 %% -----------------------------------------------------------------
 MAJOR ALGORITHM MODIFICATIONS:
 
@@ -125,13 +118,14 @@ MAJOR ALGORITHM MODIFICATIONS:
   implementation did this, but we eliminated it when switching to
   ECOS.
 
-* Amplitude drift:
+* Allow AMPLITUDE DRIFT:
   - allow slow temporal drift of waveform amplitudes
   - allow systematic amplitude reductions in bursts based on time/ampltidue of
     previous spike.
 
-* Use an operator-splitting optimization method (e.g., ADMM) to embed
-  the final thresholding step into the iterative process.
+* Make code INCREMENTAL, reading data from file and processing recursively.
 
-* Incremental method, reading data from file and processing on the fly.
-  Should allow waveforms to drift.
+* Switch to an operator-splitting optimization method (e.g., ADMM) to embed
+  the final thresholding step into the iterative process.  This
+  combines the best aspects of convex and greedy approaches, and will
+  be both faster and potentially much more accurate! 
