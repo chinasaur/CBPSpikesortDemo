@@ -178,8 +178,8 @@ params.cbp.firing_rate = 1e-3 .* ones(num_waveforms, 1);
 % are isolated (no overlap with other spikes), this makes the code run 
 % much faster 
 params.cbp.compare_greedy = false; 
-params.cbp.greedy_p_value = 0; % tolerance to accept greedy soln
-% params.cbp.greedy_p_value = 1 - 1e-5;
+% params.cbp.greedy_p_value = 0; % tolerance to accept greedy soln
+params.cbp.greedy_p_value = 1 - 1e-5;
 
 % Corr. threshold below which atoms will not be used during CBP.
 % For speedup only; set to 0 to disable
