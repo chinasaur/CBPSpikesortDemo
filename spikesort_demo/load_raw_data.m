@@ -27,7 +27,7 @@ switch identifier
         % Real data: tetrode + one ground-truth intracellular electrode, rat hippocampus
         % From: Harris et. al., J. Neurophysiology, 84:401-414, 2000.
         fprintf(1,'Loading Harris dataset 1...\n');
-        filename = '../example_data/harris_d533101_v2.mat';
+        filename = '../example_data/harris_d533101.mat';
         d = load(filename, 'data', 'dt');
         d.polarity = 'min';
    
