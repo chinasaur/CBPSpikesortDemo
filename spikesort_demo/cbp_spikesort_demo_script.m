@@ -75,17 +75,18 @@ filtdata = FilterData(data, params);
 data_pp = WhitenNoise(filtdata, params);
 
 % Diagnostics for whitening:
-% Fig 4: original vs. whitened autocorrelation(s), which should be close to a delta
+% Fig 4: original vs. whitened autocorrelation(s),  should be close to a delta
 %   function (1 at 0, 0 elsewhere).  If not, try increasing
 %   params.whitening.num_acf_lags.  If auto-corrlation is noisy, there may not be
 %   enough data samples for estimation.  This can be improved by a. increasing
 %   params.whitening.noise_threshold (allow more samples) b. decreasing
 %   params.whitening.num_acf_lags c. decreasing params.whitening.min_zone_len (allow
 %   shorter noise zones).
-% Fig 5 (for multi-electrodes only): cross-channel correlation, which should be
-%   diagonal. If not, a. increase params.whitening.num_acf_lags or b. increase
-%   params.whitening.min_zone_len .  Note that this trades off with the quality the
-%   estimates (see prev).
+% Fig 5 (for multi-electrodes only): cross-channel correlation,
+%   should look like the identity matrix. If not, a. increase
+%   params.whitening.num_acf_lags or b. increase
+%   params.whitening.min_zone_len .  Note that this trades off with
+%   the quality the estimates (see prev).
 % Fig 1: Highlighted segments of whitened data (green) will be used to estimate
 %   waveforms in the next step.  These should contain spikes (and non-highlighted
 %   regions should contain background noise).  
@@ -116,16 +117,21 @@ data_pp = WhitenNoise(filtdata, params);
 %       For example, if the spike waveforms always have large positive (negative)
 %       peaks, use max (min).
 
-[centroids, assignments, X, XProj, PCs, snippet_centers_cl] = ...
+[centroids, assignments, X, XProj, PCs, segment_centers_cl] = ...
     EstimateInitialWaveforms(data_pp, params);
+if (params.general.plot_diagnostics)
+  VisualizeClustering(XProj, assignments, X, data_pp.nchan, ...
+		      params.plotting.first_fig_num+3, ...
+		      params.clustering.spike_threshold);
+end
+
+% Gather centroids into a cellarray, for use in CBP
+init_waveforms = waveformMat2Cell(centroids, params.general.waveform_len, ...
+				  data_pp.nchan, params.clustering.num_waveforms);
 
 % For later comparisons, also compute spike times corresponding to the segments
 % assigned to each cluster:
-spike_times_cl = GetSpikeTimesFromAssignments(snippet_centers_cl, assignments);
-
-VisualizeClustering(XProj, assignments, X, data_pp.nchan, ...
-		    params.plotting.first_fig_num+3, ...
-		    params.clustering.spike_threshold);
+spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 
 % Diagnostics for clustering waveform initialization: 
 % At this point, waveforms of all potential cells should be identified (note that
@@ -148,70 +154,21 @@ VisualizeClustering(XProj, assignments, X, data_pp.nchan, ...
 
 [snippets, breaks, snippet_lens, snippet_centers, snippet_idx] = ...
     PartitionSignal(data_pp.data, params.partition);
-fprintf('Partitioned signal into %d chunks\n', length(snippets));
 
-%*** Close all preprocessing-related figures
-%figNums = params.plotting.first_fig_num+[0:2];
-%close(figNums(ishghandle(figNums)));
-
-% Fill in missing parameters
-if (isempty (params.cbp.num_features))
-  %num_waveforms = params.clustering.num_waveforms;
-  num_waveforms = size(centroids, 2);
-  params.cbp.num_features = num_waveforms;
-else
-  num_waveforms = params.cbp.num_features;
-end
-
-% Set initial estimates of spike waveforms to the clustering centroids
-params.cbp_outer.init_features = cell(num_waveforms, 1);
-params.cbp_outer.num_chan = data_pp.nchan;
-for i = 1 : num_waveforms
-    params.cbp_outer.init_features{i} = ...
-        reshape(centroids(:, i), [], params.cbp_outer.num_chan);
-end 
-
-% Prior expected firing rates
-params.cbp.firing_rate = 1e-3 .* ones(num_waveforms, 1);
-
-% Try single-spike soln first, accepting if better than tolerance.  If most spikes
-% are isolated (no overlap with other spikes), this makes the code run 
-% much faster 
-params.cbp.compare_greedy = false; 
-% params.cbp.greedy_p_value = 0; % tolerance to accept greedy soln
-params.cbp.greedy_p_value = 1 - 1e-5;
-
-% Corr. threshold below which atoms will not be used during CBP.
-% For speedup only; set to 0 to disable
-params.cbp.prefilter_threshold = 0; %0.01, ... 
-
-% -----------------------------------------------------------------
-% Pick solver and reweighting parameters
-
-% Setup CVX if needed
-% addpath(fullfile(sstpath, '../cvx/'));
-% cvx_setup;
-% cvx_solver sedumi; 
-% params.cbp.solve_fn = @cbp_cvx;
-% params.cbp.solve_fn = @cbp_qcml_sumsquare;
-% reweight_exp = 25 * [1 1 1];
-
-params.cbp.solve_fn = @cbp_ecos_2norm;
-reweight_exp = 1.5 * ones(1, num_waveforms);
-params.cbp.lambda = reweight_exp(:); % multiplier for sparsity weight
-
-% FIXME: Move function definition inside CBP, but leave explanation of
-% reweight_exp for users.
-%
+%%** MOVE THIS
 % Set the reweighting function for the Iteration Reweighted L1 optimization
 % for inferring the spikes. Theoretically, the new weight for a coefficient
 % x should be set to -d/dz(log(P(z)))|z=x where P(z) is the prior density
 % on the spike amplitudes. Here we employ a power-law distribution for 
 % 0 <= x <= M with exponent=reweight_exp and offset=eps1
+num_waveforms=length(init_waveforms);
+reweight_exp = 1.5 * ones(1, num_waveforms);
+params.cbp.lambda = reweight_exp(:); % multiplier for sparsity weight
 params.cbp.reweight_fn = cell(num_waveforms, 1);
 for i = 1 : num_waveforms
     params.cbp.reweight_fn{i} = @(x) reweight_exp(i) ./ (eps + abs(x));    
 end
+
 
 %% -----------------------------------------------------------------
 % CBP step 1: use CBP to estimate spike times of all cells
@@ -222,12 +179,22 @@ starttime = tic;
 [spike_times, spike_amps, recon_snippets] = ...
     SpikesortCBP(snippets, ...
                  snippet_centers, ...
+		 init_waveforms, ...
                  params.cbp_outer, ...
                  params.cbp);
 toc(starttime);
 
 % Histogram of windowed norm for data, whitened data, residual
-%** a mess for mulitple electrodes
+%** FIX THIS: it's a mess for mulitple electrodes Display for CBP should include: 
+%   1) amplitude distributions, thresholds, and threshold sensitivities for each cell;
+%% After choosing thresholds, should show:
+%   2) ACF, CCF, and firing rates for current threshold choice;
+%   3) whitened data (fig1), with recovered spikes indicated
+%   4) residual data (fig1 also?)
+%   5) histograms, both raw, and cross-channel magnitudes, of residuals
+%% After re-computing waveforms, should show:
+%   6) New waveforms
+
 if (params.general.plot_diagnostics)
   data_recon = cell(size(snippets));
   for i = 1:numel(snippets)
@@ -319,7 +286,7 @@ end
 % Diagnostics for CBP waveforms: 
 % If recovered waveforms differ significantly from initial waveforms, then algorithm
 % has not yet converged.  Execute this and go back to re-run CBP:
-%     params.cbp_outer.init_features = waveforms
+%     init_waveforms = waveforms;
 
 %**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.
 % Allow user to modify or increase/decrease number of waveforms.

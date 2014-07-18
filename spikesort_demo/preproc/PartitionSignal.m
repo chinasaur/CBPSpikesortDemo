@@ -108,6 +108,10 @@ breaks_idx = breaks_idx.PixelIdxList;
 breaks = cellfun(@(i) signal(:,i)', breaks_idx, 'UniformOutput', false);
 
 
+fprintf('Partitioned signal into %d snippets\n', length(snippets));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 function block_idx = FindConsecutiveZeroes(logical_vec, min_block_len)
 % Given a logical vector, find regions of at least min_block_len
 % consecutive 0's. Return a logical vector indexing only these blocked

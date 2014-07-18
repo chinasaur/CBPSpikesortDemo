@@ -1,6 +1,7 @@
 function [spike_times, spike_amps, recon_snippets] = ...
     SpikesortCBP(snippets, ...
                  snippet_centers, ...
+		 waveforms, ...
                  cbp_outer_pars, ...
                  cbp_pars)
 %
@@ -24,18 +25,16 @@ function [spike_times, spike_amps, recon_snippets] = ...
 % spike_amps : cell array of spike magnitudes
 % recon_snippets : cell array of reconstructed snippets
 
-waveforms = cbp_outer_pars.init_features;
-
 
 % Precompute dictionary, radii, thetas
 cbp_pars.spacings = ...
-    polar_1D_delta(cbp_outer_pars.init_features, cbp_pars.accuracy);
+    polar_1D_delta(waveforms, cbp_pars.accuracy);
 
 [cbp_pars.radii, cbp_pars.thetas] = ...
-    polar_1D_get_radii_angles(cbp_outer_pars.init_features, cbp_pars.spacings);
+    polar_1D_get_radii_angles(waveforms, cbp_pars.spacings);
 
 [cbp_pars.precompgps cbp_pars.precompdicts] = ...
-    PrecomputeDictionaries(cbp_outer_pars.init_features, cbp_pars.spacings, snippets);
+    PrecomputeDictionaries(waveforms, cbp_pars.spacings, snippets);
 
 
 fprintf('Inferring spikes for whole data set...\n');

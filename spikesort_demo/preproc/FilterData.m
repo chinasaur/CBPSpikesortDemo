@@ -25,7 +25,10 @@ end
 data = data - repmat(mean(data, 2), 1, size(data, 2));
 
 % Scale GLOBALLY across all channels
+%dataMag = sqrt(sum(data .^ 2, 1));
+%data = data ./ max(dataMag);
 data = data ./ max(abs(data(:)));
+
 
 % Output
 datastruct.data = data;
@@ -35,7 +38,7 @@ datastruct.processing{end+1} = log;
 % Plot filtered data, Fourier amplitude, and histogram of magnitudes
 if (params.general.plot_diagnostics)
     % copied from WhitenNoise:
-    dataMag = sqrt(sum(datastruct.data .^ 2, 1));
+    dataMag = sqrt(sum(data .^ 2, 1));
     nchan = datastruct.nchan;
     thresh = params.whitening.noise_threshold;
     minZoneLen = params.whitening.min_zone_len;
@@ -57,8 +60,8 @@ if (params.general.plot_diagnostics)
     dh = plot((inds-1)*datastruct.dt, datastruct.data(:,inds)');
     hold off; 
     set(gca, 'Xlim', ([inds(1),inds(end)]-1)*datastruct.dt);
-    set(gca,'Ylim',[-1 1]);  legend('noise regions, to be whitened');
-    title('Filtered data, w/ regions to be used for noise covariance estimation');
+    set(gca,'Ylim',[-1 1]);  legend('noise regions (to be whitened)');
+    title('Filtered data');
 
     figure(params.plotting.first_fig_num+1); subplot(3,1,2);
     maxDFTind = floor(datastruct.nsamples/2);
@@ -67,13 +70,31 @@ if (params.general.plot_diagnostics)
     plot(([1:maxDFTind]-1)/(maxDFTind*datastruct.dt*2), dftMag(1:maxDFTind));
     set(gca,'Yscale','log'); axis tight; 
     xlabel('frequency (Hz)'); ylabel('amplitude');
-    title('Fourier amplitude of filtered data');
+    title('Fourier amplitude, filtered data');
   
     figure(params.plotting.first_fig_num+2); clf
-    [N,X] = hist(dataMag, 100); 
-    [Nnoise] = hist(dataMag(noiseZoneInds), X);
     sd = sqrt(sum(cellfun(@(c) sum(dataMag(c).^2), noiseZones)) / ...
               (nchan*sum(cellfun(@(c) length(c), noiseZones))));
+
+    subplot(2,1,1);
+    mx = max(abs(datastruct.data(:)));
+    X=linspace(-mx,mx,100);
+    N=hist(datastruct.data',X);
+    plot(X,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
+    hold on;
+    gh=plot(X, max(N(:))*exp(-(X.^2)/(2*sd.^2)), 'r', 'LineWidth', 2); 
+    plot(X,N); set(gca,'Ylim',rg);
+    hold off; 
+    if (nchan < 1.5)
+      title('Histogram, filtered data');
+    else
+      title(sprintf('Histograms, filtered data (%d channels)', nchan));
+    end
+    legend(gh, 'Gaussian, fit to noise regions');
+    subplot(2,1,2);
+
+    [N,X] = hist(dataMag, 100); 
+    [Nnoise] = hist(dataMag(noiseZoneInds), X);
     chi = 2*(X/sd).*chi2pdf((X/sd).^2, nchan);
     bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
     hold on; 
@@ -81,7 +102,7 @@ if (params.general.plot_diagnostics)
     ch= plot(X, (max(N)/max(chi))*chi, 'g'); 
     hold off; set(gca, 'Ylim', yrg);
     xlabel('rms magnitude (over all channels)'); 
-    legend([dh, ch], 'noise regions', 'chi2, fitted to noise regions');
+    legend([dh, ch], 'noise regions', 'chi-distribution, fit to noise regions');
     title('Histogram, cross-channel magnitude of filtered data');
 end
 

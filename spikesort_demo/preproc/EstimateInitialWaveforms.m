@@ -14,7 +14,7 @@ gen_pars = params.general;
 pars.align_mode = datastruct.polarity;
 
 if isempty(pars.window_len)
-    pars.window_len = gen_pars.waveform_len;
+    pars.window_len = 2*floor(gen_pars.waveform_len/2)+1;
 end
 
 if isempty(pars.peak_len)
@@ -23,7 +23,7 @@ end
 
 
 % Root-mean-squared (across channels) of data.
-data_rms = sqrt(sum(data .^ 2, 1));
+data_rms = sqrt(sum(data.^ 2, 1));
 
 % Clustering parameters
 %threshold = 4 * median(data_rms) ./ 0.6745; % robust
@@ -32,7 +32,7 @@ threshold = pars.spike_threshold;
 
 % Identify time indices of candidate peaks.
 peak_idx = FindPeaks(data_rms(:), threshold, pars);
-fprintf('Found %d candidates.\n', length(peak_idx));
+fprintf('Found %d segments exceeding threshold of %.1f.\n', length(peak_idx),threshold);
 
 % Construct a matrix with these windows, upsampled and aligned.
 X = ConstructSnippetMatrix(data, peak_idx, pars);
@@ -73,15 +73,16 @@ peak_idx = find(peak_idx);
 function [PCs, XProj] = TruncatePCs(X, percent_variance)
 fprintf('Doing PCA...');
 % Get PCs
-[PCs, Xproj, latent] = princomp(X');
+%[PCs, Xproj, latent] = princomp(X');
+[PCs, Xproj, latent] = pca(X', 'Centered', false);
+%[PCs, Xproj, latent] = pca(X');
 [latent sorted_idx] = sort(latent, 'descend');
 PCs = PCs(:,sorted_idx);
 Xproj = Xproj(:, sorted_idx);
 
 % Figure out how many PCs we need to account for
 % the desired percent of total variance
-cutoff = find(cumsum(latent) ./ sum(latent) * 100 > ...
-    percent_variance, 1)
+cutoff = find(cumsum(latent) ./ sum(latent) * 100 > percent_variance, 1);
 npcs = max(2, cutoff);
 fprintf('%d PCs account for %.2f percent variance\n', ...
     npcs, percent_variance);
@@ -89,7 +90,6 @@ fprintf('%d PCs account for %.2f percent variance\n', ...
 PC = PCs(:, 1 : npcs);
 % Project on to PCs
 XProj = Xproj(:, 1 : npcs);
-
 
 
 % Do K-means clustering on the PC representation of the snippets

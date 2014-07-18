@@ -63,7 +63,7 @@ end
                     white_pars.reg_const, ...
                     gen_pars.plot_diagnostics);
 noise_sigma = 1;
-fprintf('noise_sigma=%f\n', noise_sigma);
+%fprintf('noise_sigma=%f\n', noise_sigma);
 
 
 % Standardization AGAIN
@@ -148,14 +148,14 @@ if (gen_pars.plot_diagnostics)
 end
 
 % visualization of whitened data, FFT, and histograms
-if (params.general.plot_diagnostics)
+if (gen_pars.plot_diagnostics)
     inds = params.plotting.dataPlotInds;
     % copied from preproc/EstimateInitialWaveforms.m:
     dataMag = sqrt(sum(whitedatastruct.data .^ 2, 1));
     thresh = params.clustering.spike_threshold;
     peakInds = dataMag(inds)> thresh;  
     peakLen = params.clustering.peak_len;
-    if (isempty(peakLen)), peakLen=floor(params.general.waveform_len/2); end;
+    if (isempty(peakLen)), peakLen=floor(gen_pars.waveform_len/2); end;
     for i = -peakLen : peakLen
         peakInds = peakInds & dataMag(inds) >= dataMag(inds+i);
     end
@@ -170,7 +170,7 @@ if (params.general.plot_diagnostics)
     hold off
     axis tight
     title('Filtered & noise-whitened data')
-    legend('Segments exceeding threshold (putative spikes)');
+    legend('putative spike segments (for initial waveform estimation)');
     
     figure(params.plotting.first_fig_num+1); subplot(3,1,3);
     maxDFTind = floor(whitedatastruct.nsamples/2);
@@ -179,7 +179,7 @@ if (params.general.plot_diagnostics)
     plot(([1:maxDFTind]-1)/(maxDFTind*whitedatastruct.dt*2), dftMag(1:maxDFTind));
     set(gca, 'Yscale', 'log'); axis tight; 
     xlabel('frequency (Hz)'); ylabel('amplitude');
-    title('Fourier amplitude of filtered & noise-whitened data');
+    title('Fourier amplitude, filtered & noise-whitened data');
     
     figure(params.plotting.first_fig_num+2); clf
     subplot(2,1,1);
@@ -191,8 +191,12 @@ if (params.general.plot_diagnostics)
     gh=plot(X, max(N(:))*exp(-(X.^2)/2), 'r', 'LineWidth', 2); 
     plot(X,N); set(gca,'Ylim',rg);
     hold off; 
-    title('Histogram(s), filtered/whitened channel(s)');
-    legend(gh, 'Univariate Gaussian');
+    if (nchan < 1.5)
+      title('Histogram, filtered/whitened data');
+    else
+      title(sprintf('Histograms, filtered/whitened data, %d channels', nchan));
+    end
+    legend(gh, 'univariate Gaussian');
     subplot(2,1,2);
     [N,X] = hist(dataMag, 100);
     Nspikes = hist(dataMag(dataMag>thresh), X);
@@ -204,7 +208,7 @@ if (params.general.plot_diagnostics)
     ch= plot(X, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
     hold off; set(gca, 'Ylim', yrg); 
     title('Histogram, magnitude over filtered/whitened channel(s)');
-    legend([dh, ch], 'putative spikes', 'chi-distribution for white noise');
+    legend([dh, ch], 'putative spike segments', 'chi-distribution, univariate Gaussian');
 end    
 
 

@@ -1,4 +1,4 @@
-function [delta lambda_vals] = polar_1D_delta(W, epsilon)
+function [delta] = polar_1D_delta(W, epsilon)
 % Compute the best delta to use for a given set of waveforms, given a 
 % desired accuracy
 

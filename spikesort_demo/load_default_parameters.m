@@ -2,12 +2,12 @@ function params = load_default_parameters()
 
 % Default parameters, assembled into a hierarchical structure to clarify which are used where. 
 
-general.waveform_len    = 81;    % number of samples in spike waveform
+general.waveform_len    = 81;    % number of samples in spike waveform.  MUST BE ODD.
 general.plot_diagnostics = true;
 
+plotting.font_size = 12;
 plotting.first_fig_num = 1;  % resetting this will make figure display start from a new base, allowing 
                              % comparison between different parameter conditions
-plotting.font_size = 12;
 
 filtering.freq  = [100];       % Low/high cutoff in Hz, empty default means no filtering
 filtering.type  = 'fir1';      % "fir1", "butter"
@@ -56,17 +56,19 @@ cbp_outer.reestimate_priors = false;  % always FALSE
 cbp_outer.CoeffMtx_fn =  @polar_1D_sp_cnv_mtx;  % convolves spikes w/waveforms
 cbp_outer.plot_every = 1;   % plotting frequency    
 
-cbp.num_features = [];  % number of "cells", empty => copy from params.clustering
-cbp.firing_rates = [];  %prior: probability of observering a spike in a time bin
-cbp.noise_sigma = 1;  %assumes that noise has been whitened 
+%cbp.num_features = [];  % number of "cells", empty => copy from params.clustering
+cbp.firing_rates = 1e-3;  %prior: probability of observering a spike in a time bin
+cbp.accuracy = 0.1; % error allowed when interpolating waveforms
+cbp.magnitude_threshold = 1e-2; % amplitude threshold for deleting spikes
+cbp.compare_greedy = true; % if true, check for isolated spikes before trying full CBP- for efficiency
+cbp.greedy_p_value = 1 - 1e-5; % tolerance for accepting greedy solution
+cbp.prefilter_threshold = 0; % threshold below which atoms will not be used during CBP - for efficiency
+cbp.noise_sigma = 1;  % assume that noise has been whitened 
 cbp.cbp_core_fn = @polar_1D_cbp_core;  % CBP core interpolation
 cbp.solve_fn =  @cbp_ecos_2norm;  % Optimization solver function
-cbp.debug_mode = false;  % debug mode
 cbp.num_reweights = 1e3;  % MAX number of IRL1 iterations
-cbp.magnitude_threshold = 1e-2; % amplitude threshold for deleting spikes
 cbp.parfor_chunk_size = Inf;  % parallelization chunk size
-cbp.accuracy = 0.1; % For picking sampling grid for waveforms
-
+cbp.debug_mode = false;  % debug mode
 
 params.general      = general;
 params.plotting     = plotting;

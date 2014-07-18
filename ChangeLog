@@ -1,3 +1,27 @@
+2014-07-18  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/SpikesortCBP.m: 
+	Added waveforms argument to this function, and removed the cbp_outer.init_features parameter
+
+	* spikesort_demo/preproc/plotting/VisualizeClustering.m:
+	indicate centroids in scatter plot
+	display of waveforms/traces for multi-electrodes offset
+	match color scheme in clustering scatter and waveform plots
+	use same y-axis scaling for all waveforms
+
+	* spikesort_demo/preproc/EstimateInitialWaveforms.m (peak_idx): 
+	princomp is being discontinued.  Switched to call pca
+	don't re-center (subtract mean) when doing  PCA
+	make waveform_len odd
+	
+	* spikesort_demo/preproc/FilterData.m (data): 
+	added histograms of raw data
+
+2014-07-17  Peter Li
+
+	* put another Harris dataset into the example_data directory
+	* re-activated greedy solution for speedup
+	
 2014-07-16  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
 	* spikesort_demo/preproc/PartitionSignal.m (signal_rms): 

@@ -6,11 +6,13 @@ INTERFACE/COSMETIC CHANGES:
 
 * add figure size and position parameters to params.plotting
 
+* close unneeded figs: close(figNums(ishghandle(figNums)));
+
 * add scroll bars to data plots - general interface for skipping to next "event"
 
 * demo script should run with diagnostics turned off, checking waveform convergence and repeating...
 
-* Unify wording.  "snippet" -> "segment" ?
+* Unify wording.  "snippet"/"chunk" -> "segment" ?
 
 * add to params.plotting: maxTracePlotLen, noiseCol, spikeCol
 
@@ -19,11 +21,8 @@ INTERFACE/COSMETIC CHANGES:
 ** To prepare for waveform iteration, clustering centroids should be called initial_waveforms.
 
 * VisualizeClustering
-  - display of waveforms/traces for multi-electrodes is confusing... Not sure how to fix
-  -- use same y-axis scaling
   -- give time in msec, not samples
   -- show spike rates, in addition to total count
-  -- Show a black asterisk at the current waveforms (centroids)
   - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
   -- for waveforms, give expected MISS+FP rate, given univariate Gaussian noise
   - also give probability of mistaking each waveform for the others
@@ -61,8 +60,11 @@ INTERFACE/COSMETIC CHANGES:
 * Display stats in ground truth comparison figures (preserved if we try
   again with different params, increasing the starting figure number) ?
 
+
 %% -----------------------------------------------------------------
 SMALL ALGORITHMIC CHANGES:
+
+* ParitionSignal is not robust - breaks when threshold is too low.
 
 ** In filtering step, global re-scaling should set max of cross-channel
   magnitude to 1, not individual channel max, since the thresholding
