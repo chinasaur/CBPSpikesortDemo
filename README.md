@@ -28,8 +28,8 @@ TO GET STARTED: we suggest you work through the code in the demonstration script
     spikesort_demo/cbp_spikesort_demo_script.m
 executing one section at a time.
 
-This directory contains a ChangeLog documenting changes made to the
-code, as well as a ToDo list.
+We also include a ChangeLog file documenting changes made to the code, as
+well our current ToDo file.
 
 * Conceptualization and design by Chaitanya Ekanadham and Eero Simoncelli.
 * Original matlab code written by Chaitanya Ekanadham, 12/26/2012.
@@ -64,9 +64,9 @@ obtain initial estimates of their waveforms.
 
 CBP SPIKE SORTING:
 
-(4) Partition data into segments (optional).  To improve efficiency
-(especially when using multiple cores or machines), the data array is
-partitioned into "snippets", separated by spike-free intervals.
+(4) Partition data (optional).  To improve efficiency (especially when
+using multiple cores or machines), the data array is separated into
+smaller segments, separated by spike-free intervals.
 
 (5) Use CBP (see article listed above) to estimate amplitudes/times of
 spikes associated with each waveform.

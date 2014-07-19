@@ -11,7 +11,7 @@
 % for your system).
 spikesort_demo_setup(pwd());
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Step 0: Load raw electrode data
 
 % Load an example data set, including raw data, the timestep, and (optionally) ground
@@ -28,7 +28,7 @@ datasetName = 'Quiroga1';
 params = load_default_parameters();
 [data, params] = load_raw_data(datasetName, params);
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Preprocessing Step 1: Temporal filtering
 
 % Remove low and high frequencies - purpose is to eliminate non-signal parts of the
@@ -56,7 +56,7 @@ filtdata = FilterData(data, params);
 % params.whitening.noise_threshold, or modify the filtering parameters in
 % params.filtering, and re-run the filtering step.
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Preprocessing Step 2: Estimate noise covariance and whiten
 
 % Estimate and whiten the noise, assuming channel/time separability. This makes the
@@ -91,10 +91,10 @@ data_pp = WhitenNoise(filtdata, params);
 %   waveforms in the next step.  These should contain spikes (and non-highlighted
 %   regions should contain background noise).  
 % Fig 3, Top: Histograms of whitened channels - central portion should look
-% Gaussian. Bottom: Histogram of across-channel magnitude, with magnitudes of
-% highlighted segments in green.  If spikes are in noise regions, reduce params.whitening.threshold
+%   Gaussian. Bottom: Histogram of across-channel magnitude, with magnitudes of
+%   highlighted segments in green.  If spikes are in noise regions, reduce params.whitening.threshold
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Preprocessing Step 3: Estimate initial spike waveforms
 
 % Initialize spike waveforms using clustering:
@@ -144,7 +144,7 @@ spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 % If you do this, you should go back and re-run starting from the whitening step,
 % since the waveform_len affects the identification of noise regions.
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % CBP setup
 
 % Partition data into snippets, separated by "noise zones" in which the RMS of the
@@ -162,7 +162,6 @@ spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 % x should be set to -d/dz(log(P(z)))|z=x where P(z) is the prior distribution
 % on the spike amplitudes. Here we employ a power-law distribution for 
 % 0 <= x <= M with exponent=reweight_exp and offset=eps1
-
 num_waveforms=length(init_waveforms);
 reweight_exp = 1.5 * ones(1, num_waveforms);
 params.cbp.lambda = reweight_exp(:); % multiplier for sparsity weight
@@ -171,8 +170,7 @@ for i = 1 : num_waveforms
     params.cbp.reweight_fn{i} = @(x) reweight_exp(i) ./ (eps + abs(x));    
 end
 
-
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % CBP step 1: use CBP to estimate spike times of all cells
 
 params.cbp.progress = true; % Set false if progress bar causes Java errors
@@ -223,7 +221,7 @@ end
 % Residual should not have high-amplitude regions (if it does, increase
 % params.cbp.firing_rates, and re-run CBP).
     
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Pick amplitude thresholds and interactively visualize effect on ACorr/XCorr
 
 % Allow this much slack in time bins of spike locations, for live updating 
@@ -252,7 +250,7 @@ spike_location_slack = 30;
 % refractory period (roughly 1-3msec), and Cross-correlations should not have a
 % narrow notch around zero (common in clustering methods).
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % CBP Step 2: re-estimate waveforms
 
 % Compute waveforms using regression, with interpolation (defaults to cubic spline)
@@ -272,11 +270,11 @@ if (params.general.plot_diagnostics)
 
     for i = 1:numel(waveforms)
         subplot(nr, nc, i);
-        inith = plot(params.cbp_outer.init_features{i}, 'b');
+        inith = plot(init_waveforms{i}, 'b');
         hold on
         finalh = plot(waveforms{i}, 'r');
         hold off
-        err = norm(params.cbp_outer.init_features{i} - waveforms{i})/...
+        err = norm(init_waveforms{i} - waveforms{i})/...
               norm(waveforms{i});
         title(sprintf('Waveform %d, Rel error=%.2f', i, err))
         legend([inith(1) finalh(1)], {'Initial', 'New'});
@@ -291,8 +289,7 @@ end
 %**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.
 % Allow user to modify or increase/decrease number of waveforms.
 
-
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Post-analysis: Comparison to clustering results, and to ground truth (if available)
 
 ground_truth = load(data_pp.filename, 'true_spike_times', 'true_spike_class', 'dt');
@@ -330,7 +327,7 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
 
 end
 
-% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Plot various snippet subpopulations
 [est_matches true_matches] = GreedyMatchTimes(spike_times, ground_truth.true_sp, ground_truth.spike_location_slack);
 
@@ -365,7 +362,7 @@ ScrollSnippets(snippets, snippet_centers, ...
     'true',         ground_truth.true_sp);
 
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Visualize true spike assignments in PC-space
 
 if isfield(ground_truth, 'true_spike_class') && isfield(ground_truth, 'true_spike_times')
@@ -402,7 +399,7 @@ end
 %    with separate colors (i.e. waveforms in Fig 7 should all have distinct
 %    shapes).
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------------------------
 % Get greedy spike matches and plot RoC-style
 % NB: Much faster if mex greedymatchtimes.c is compiled
 PlotCBPROC(spike_times, spike_amps, ground_truth.true_sp, ground_truth.spike_location_slack);
