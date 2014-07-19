@@ -18,9 +18,8 @@ INTERFACE/COSMETIC CHANGES:
 
 * PreprocessTrace currently ignores p_norm parameter.  
 
-** To prepare for waveform iteration, clustering centroids should be called initial_waveforms.
-
 * VisualizeClustering
+  -- show 2D subspace that best captures SPIKE WAVEFORMS, not all data.
   -- give time in msec, not samples
   -- show spike rates, in addition to total count
   - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?

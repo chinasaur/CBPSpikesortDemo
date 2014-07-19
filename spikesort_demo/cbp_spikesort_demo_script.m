@@ -119,6 +119,7 @@ data_pp = WhitenNoise(filtdata, params);
 
 [centroids, assignments, X, XProj, PCs, segment_centers_cl] = ...
     EstimateInitialWaveforms(data_pp, params);
+
 if (params.general.plot_diagnostics)
   VisualizeClustering(XProj, assignments, X, data_pp.nchan, ...
 		      params.plotting.first_fig_num+3, ...
@@ -155,12 +156,13 @@ spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 [snippets, breaks, snippet_lens, snippet_centers, snippet_idx] = ...
     PartitionSignal(data_pp.data, params.partition);
 
-%%** MOVE THIS
+%%** MOVE THIS (where?)
 % Set the reweighting function for the Iteration Reweighted L1 optimization
-% for inferring the spikes. Theoretically, the new weight for a coefficient
-% x should be set to -d/dz(log(P(z)))|z=x where P(z) is the prior density
+% for inferring the spikes.  Updated weight for a coefficient
+% x should be set to -d/dz(log(P(z)))|z=x where P(z) is the prior distribution
 % on the spike amplitudes. Here we employ a power-law distribution for 
 % 0 <= x <= M with exponent=reweight_exp and offset=eps1
+
 num_waveforms=length(init_waveforms);
 reweight_exp = 1.5 * ones(1, num_waveforms);
 params.cbp.lambda = reweight_exp(:); % multiplier for sparsity weight
@@ -177,23 +179,21 @@ params.cbp.progress = true; % Set false if progress bar causes Java errors
 
 starttime = tic;
 [spike_times, spike_amps, recon_snippets] = ...
-    SpikesortCBP(snippets, ...
-                 snippet_centers, ...
-		 init_waveforms, ...
-                 params.cbp_outer, ...
-                 params.cbp);
+    SpikesortCBP(snippets, snippet_centers, init_waveforms, ...
+                 params.cbp_outer, params.cbp);
 toc(starttime);
 
-% Histogram of windowed norm for data, whitened data, residual
-%** FIX THIS: it's a mess for mulitple electrodes Display for CBP should include: 
-%   1) amplitude distributions, thresholds, and threshold sensitivities for each cell;
+% ***FIX: 
+%% After running CBP, display should show: 
+%   Fig2: amplitude distributions, with threshold, and threshold sensitivities for each cell;
+%         ACF, CCF, and firing rates for current threshold choice;
 %% After choosing thresholds, should show:
-%   2) ACF, CCF, and firing rates for current threshold choice;
-%   3) whitened data (fig1), with recovered spikes indicated
-%   4) residual data (fig1 also?)
-%   5) histograms, both raw, and cross-channel magnitudes, of residuals
+%   Fig1a: whitened data, with recovered spikes indicated (colored points)
+%   Fig1b: residual data (spikes removed)
+%   Fig3: histograms, both raw, and cross-channel magnitudes, of residuals
+%   Fig 4: projection into PC space of segments, with spike assignments (as in paper)
 %% After re-computing waveforms, should show:
-%   6) New waveforms
+%   Fig5: New waveforms, compared to initial
 
 if (params.general.plot_diagnostics)
   data_recon = cell(size(snippets));

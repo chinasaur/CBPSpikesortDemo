@@ -1,4 +1,10 @@
+NOTE: "->" indicates changes to cmoputatin or parameters that affect results
+-------------------------------------------------------------------------------------
+
 2014-07-18  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/load_default_parameters.m: 
+	removed params.cbp.num_features. Unnecessary - can get it from length(init_features)
 
 	* spikesort_demo/SpikesortCBP.m: 
 	Added waveforms argument to this function, and removed the cbp_outer.init_features parameter
@@ -11,7 +17,7 @@
 
 	* spikesort_demo/preproc/EstimateInitialWaveforms.m (peak_idx): 
 	princomp is being discontinued.  Switched to call pca
-	don't re-center (subtract mean) when doing  PCA
+	-> don't re-center (subtract mean) when doing  PCA
 	make waveform_len odd
 	
 	* spikesort_demo/preproc/FilterData.m (data): 
