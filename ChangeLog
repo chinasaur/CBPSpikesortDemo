@@ -1,6 +1,26 @@
-NOTE: "->" indicates changes to cmoputatin or parameters that affect results
--------------------------------------------------------------------------------------
 
+## NOTE: "->" indicates changes to computation or parameters that affect results
+-------------------------------------------------------------------------------------
+	
+2014-07-23  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/load_default_parameters.m: 
+	set default filter.freq to [100 5000]
+	added cbp.lambda, cbp.reweight_exp, cbp.reweight_fn
+
+	* spikesort_demo/cbp_spikesort_demo_script.m:
+	added display of CBP recovered spikes, histograms of residual
+	errors, PC scatterplot
+	
+2014-07-21  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+
+	* spikesort_demo/load_default_parameters.m: 
+	Eliminated params.whitening.p_norm parameter, which was not being used
+	-> Changed default params.partition.silence_threshold parameter from 3 to 4	
+	
+	* spikesort_demo/load_raw_data.m: 
+	-> Changed default filtering cutoff for Harris data set from 800Hz to 400Hz
+	
 2014-07-18  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
 	* spikesort_demo/load_default_parameters.m: 

@@ -15,7 +15,11 @@ opts = opts.Results;
 
 % Setup figure
 f = opts.f;
-if isempty(f), f = figure(); end
+if isempty(f)
+  f = figure();
+else
+  figure(f);
+end
 
 n = length(spikeamps);
 setappdata(f, 'spikeamps', spikeamps);
@@ -74,6 +78,7 @@ for i = 1:n
     else
         plot(thresh(i) * [1 1], yl, 'r-', 'LineWidth', 2);
     end
+    
     ylim(yl);
 end
 

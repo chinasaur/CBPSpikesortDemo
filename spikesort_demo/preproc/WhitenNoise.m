@@ -38,6 +38,7 @@ end
 % Noise zone estimation and whitening
 
 % Root-mean-squared of data
+% should really allow a more general p-norm...
 data_rms = sqrt(sum(data .^ 2, 1)); 
 
 % Estimate noise zones
@@ -184,12 +185,11 @@ if (gen_pars.plot_diagnostics)
     figure(params.plotting.first_fig_num+2); clf
     subplot(2,1,1);
     mx = max(abs(whitedatastruct.data(:)));
-    X=linspace(-mx,mx,100);
-    N=hist(whitedatastruct.data',X);
+    [N, X] = hist(whitedatastruct.data',100);
     plot(X,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
     hold on;
     gh=plot(X, max(N(:))*exp(-(X.^2)/2), 'r', 'LineWidth', 2); 
-    plot(X,N); set(gca,'Ylim',rg);
+    plot(X,N); set(gca,'Ylim',rg); set(gca, 'Xlim', [-mx mx]); 
     hold off; 
     if (nchan < 1.5)
       title('Histogram, filtered/whitened data');
@@ -198,15 +198,15 @@ if (gen_pars.plot_diagnostics)
     end
     legend(gh, 'univariate Gaussian');
     subplot(2,1,2);
+    mx = max(dataMag);
     [N,X] = hist(dataMag, 100);
     Nspikes = hist(dataMag(dataMag>thresh), X);
     chi = 2*X.*chi2pdf(X.^2, nchan);
-    bar(X,N); set(gca,'Yscale','log'); 
-    yrg= get(gca, 'Ylim'); xrg= get(gca,'Xlim');
+    bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim'); 
     hold on; 
     dh= bar(X,Nspikes); set(dh, 'FaceColor', sigCol);
     ch= plot(X, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
-    hold off; set(gca, 'Ylim', yrg); 
+    hold off; set(gca, 'Ylim', yrg); set(gca, 'Xlim', [0 mx]);
     title('Histogram, magnitude over filtered/whitened channel(s)');
     legend([dh, ch], 'putative spike segments', 'chi-distribution, univariate Gaussian');
 end    

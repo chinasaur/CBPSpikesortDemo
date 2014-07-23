@@ -8,22 +8,23 @@ INTERFACE/COSMETIC CHANGES:
 
 * close unneeded figs: close(figNums(ishghandle(figNums)));
 
-* add scroll bars to data plots - general interface for skipping to next "event"
-
-* demo script should run with diagnostics turned off, checking waveform convergence and repeating...
+* demo script should run with diagnostics turned off, checking waveform convergence
+  and repeating...
 
 * Unify wording.  "snippet"/"chunk" -> "segment" ?
 
 * add to params.plotting: maxTracePlotLen, noiseCol, spikeCol
 
-* PreprocessTrace currently ignores p_norm parameter.  
+* waveform_len should be expressed in msec (waveforms typically 2-6 msec)
 
-* VisualizeClustering
-  -- show 2D subspace that best captures SPIKE WAVEFORMS, not all data.
-  -- give time in msec, not samples
-  -- show spike rates, in addition to total count
+* CBP firing_rate prior should be expressed in Hz (not prob per spike bin!)
+
+* VisualizeClustering:
+  - show 2D subspace that best captures SPIKE WAVEFORMS, not all data.
+  - give time in msec, not samples
+  - show spike rates, in addition to total count
   - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
-  -- for waveforms, give expected MISS+FP rate, given univariate Gaussian noise
+  - for waveforms, give expected MISS+FP rate, given univariate Gaussian noise
   - also give probability of mistaking each waveform for the others
 
 * After running clustering (or CBP), give options to:
@@ -32,29 +33,25 @@ INTERFACE/COSMETIC CHANGES:
   add a new (orthogonalized) random waveform
 
 * AmplitudeThresholdGUI:
- -- can't set these thresdholds without seeing current waveforms!  
-    PC-space scatter plot also useful
- -- give timescales in msec, not samples
- -- show total spike counts (and rate) for each cell. 
- -- make cross-corr time bins  the width of the main lobe of the waveforms (0.5msec?)
+ - if general.plot_diagnostics is false,  just choose auto values
+ - terminate with any mouse click to the window (instead of closing the window).
+ - give timescales in msec, not samples
+ - show total spike counts (and rate) for each cell. 
+ - make cross-corr time bins  the width of the main lobe of the waveforms (0.5msec?)
      ( for easy discernment of synchrony artifacts).
- -- if general.plot_diagnostics is false,  just choose auto values
-  - allow choosing multiple thresholds (for cells with different amplitudes)
 
-* CBP: initial waveforms should not be parameters, but arguments to function.
-   firing_rates parameter should be able to be set by default to a scalar (which is then replicated appropriately).
-   num_features parameter seems redundant, since we're setting initial waveforms.
+* CBP: firing_rates parameter should be able to be set by default to a scalar (which
+  is then replicated appropriately).
 
-** Need to refine the GUI for inspecting spike-sorting results.
-  Specifically, user should be able to jump to unusually large or
-  small amplitude spikes, refractory violations, cross-corr (synchrony)
-  artifacts, or mis-matches between two sorters (or sorter and ground truth).
+** Refine the GUI for inspecting results.  Specifically, user should be able to view
+  voltage traces and scroll/jump to "events", including found spikes, unusually low
+  amplitude found spikes, unusually large amplitude background locations, refractory
+  violations, cross-corr (synchrony) artifacts, or mis-matches between two sorters
+  (or sorter and ground truth).
+
+* add scroll bars to data plots - need a general interface for skipping to next "event"
 
 * Why are there two functions, evaluate_sorting and EvaluateSorting ?  Yuk.
-
-* In ground truth analysis, maybe state something like:
-  "Found <Hit> of <Hit+Miss> true spikes, missed <Miss> (XX.X%), and misreported <FA> (**%) false positives"
-   It's standard to report: Recall: Hit/(Hit+Miss),  Precision: Hit/(Hit+FA) 
 
 * Display stats in ground truth comparison figures (preserved if we try
   again with different params, increasing the starting figure number) ?
@@ -63,56 +60,50 @@ INTERFACE/COSMETIC CHANGES:
 %% -----------------------------------------------------------------
 SMALL ALGORITHMIC CHANGES:
 
-* ParitionSignal is not robust - breaks when threshold is too low.
+* Data file should include a t0 (time of initial sample, in sec) and all times should
+  be relative to that!  This requires computing/correcting filtering lags.
 
-** In filtering step, global re-scaling should set max of cross-channel
-  magnitude to 1, not individual channel max, since the thresholding
-  in the next (whitening) step is done on cross-channel magnitude!
-
-* waveform_len should be expressed in msec (waveforms typically 2-6 msec)
-
-** CBP firing_rate prior should be expressed in Hz (not prob per spike bin!)
-
-** set default filter.freq for typical spike waveforms (in Hz).  
-  Perhaps [100 5000]?
-
-* filtering stage should also perform subsampling, if high freq limit is significantly below Nyquist 
+* filtering stage should also perform subsampling, if high freq limit is
+  significantly below Nyquist
 
 * filtering.pad doesn't need to be a parameter.  Left side should be
   padded by filtering.order, and right side needs order+waveform_len,
   and a bit more for IIR filtering.
 
-* Use asymmetric window around peak for spike waveform.
+* Use asymmetric window around peak for spike waveform, perhaps 3:1
 
-* Data file should include a t0 (time of initial sample, in sec) and
-  all times should be relative to that! But this requires
-  computing/correcting filtering lags.
+* Clustering: number of PC's should be set using a better statistical criterion than
+  percent_variance: noise is supposed to be univariate and Gaussian!
 
-* Clustering: number of PC's should be set using a better statistical criterion than percent_variance: noise is supposed to be univariate and Gaussian!   
+* Improve consistency of thresholding tests for spikes/noise: 
+  - Filtering: globally rescales data so that max(abs) is 1.  Should rescale each
+    channel separately, to try to ensure noise has equal variance.
+  - Whitening: compares cross-channel L2-norm (CCN) to noise_threshold.  Probably
+    better to compute L2-norm over a few time bins, and then Lp-norm across channels,
+    to allow for spike waveforms that live on only one or a few channels.
+  - Clustering: originally used 4*std(CCN) to grab spike segments (??).  EPS changed
+    to a constant value of 6, relative to noise stdev (=1).  Preferable: User should
+    set a tolerable error rate (miss+fa), provide a prior on firing rates, and
+    theshold should be chosen using an SDT calculation:
+      T= (log(1-pr)-log(pr) + a^2/2)/a, w/ pr=prob of spike in dt, a=spike amplitude
+      eg: for error rate of 0.1%, with a prior of 1e-3, this is about 8.2
+  - Partitioning (snippets): uses yet another threshold, and additionally relies on
+     min_separation_length and min/max snippet length parameters.  This should
+     probably be again, an L2 norm over a few times bins, then combined in an Lp norm
+     over channels.
 
-* Improve consistency of thresholding tests for spikes/noise. 
-  - Filtering section globally rescales data so that max(abs) is 1.
-    Should probably rescale each channel separately, to try to ensure noise has same variance.
-  - Whitening section compares cross-channel norm (CCN) to noise_threshold to find noise regions.
-    Might be better to use an L2 norm over a few time bins, and Lp norm across channels with p>2.
-  - Originally, clustering section used 4*std(CCN) to grab spike segments - where did this come from ??
-    EPS changed to a constant (6), relative to 1 (noise stdev).
-    Alt: User should set a tolerable error rate (miss+fa), and provide a prior on firing rates, and this  
-      theshold should be chosen using standard SDT:
-      T= (log(1-pr)-log(pr) + a^2/2)/a, where pr=prior chance of spike in dt, a=spike amplitude
-      eg: for error rate of 0.1%, with a prior of 1e-3, this is about 8.2 
-  - Partitioning (snippets) section: uses yet another threshold, and
-     additionally relies on min_separation_length and min/max snippet
-     length parameters.  This should probably be again, an L2 norm over a few times bins, 
-     then combined in an Lp norm over channels.
+* ParitionSignal is not robust - breaks when threshold is too low.
 
-* Improve the spike determination after running CBP.  (1) allow an interval, not just
-  a threshold, so that similar waveforms with different amplitudes are handled
-  correctly, (2) Choose automatic thresholds by fitting a mixture of gaussians to the
-  recovered amplitudes.
+* Improve threshold determination after running CBP.  (1) Choose automatic thresholds
+  by fitting a mixture of gaussians to the recovered amplitudes.  (2) allow multiple
+  thresholds, so that similar waveforms with different amplitudes are handled
+  correctly - iterating on this will require the operator-slitting method mentioned
+  below, 
 
-%% -----------------------------------------------------------------
+%% ----------------------------------------------------------------- 
 MAJOR ALGORITHM MODIFICATIONS:
+
+* Speedup: Fourier-domain convolution
 
 * Handle noise distributions with other pnorms (stretched
   exponentials).  This is described in the paper, and the original CVX

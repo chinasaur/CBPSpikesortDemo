@@ -28,15 +28,17 @@ datasetName = 'Quiroga1';
 params = load_default_parameters();
 [data, params] = load_raw_data(datasetName, params);
 
+% Fig 1a shows the raw data.  Fig 2a plots the Fourier amplitude
+% (averaged across channels).
+
 %% ----------------------------------------------------------------------------------
 % Preprocessing Step 1: Temporal filtering
 
 % Remove low and high frequencies - purpose is to eliminate non-signal parts of the
-% frequency spectrum, and enable crude identification and removal of segments
-% containing spikes via local amplitude thresholding, after which the background
-% noise covariance can be estimated.  In addition to filtering, the code removes the
-% mean from each channel, and rescales the data (globally) to have a max abs value of
-% one.  Filtering parameters:
+% frequency spectrum, and enable crude removal of segments containing spikes via
+% local amplitude thresholding, so that background noise covariance can be estimated.
+% In addition to filtering, the code removes the mean from each channel, and rescales
+% the data (globally) to have a max abs value of one.  params.filtering includes:
 %   - freq : range of frequencies (in Hz) for designing filter
 %            Set to [] to turn off pre-filtering.
 %   - type : type of filter for preprocessing. Currently supports
@@ -47,14 +49,14 @@ params = load_default_parameters();
 filtdata = FilterData(data, params);
 
 % Diagnostics for filtering: 
-% Fig 1 shows filtered data.  In the next step, noise covariance will be estimated
+% Fig 1b shows filtered data.  In the next step, noise covariance will be estimated
 % from below-threshold regions, which are indicated in red. There should be no spikes
 % in these regions.  Fig 2 shows Fourier amplitude (effects of filtering should be
-% visible.  Fig 3 shows histogram of the cross-channel magnitudes.  Below-threshold
+% visible).  Fig 3 shows histogram of the cross-channel magnitudes.  Below-threshold
 % portion is colored red, and should look like a chi distribution with fitted
-% variance (green).  If spikes appear to be included in the noise segments, reduce
-% params.whitening.noise_threshold, or modify the filtering parameters in
-% params.filtering, and re-run the filtering step.
+% variance (green curve).  If spikes appear to be included in the noise segments,
+% reduce params.whitening.noise_threshold before proceeding, or modify the filtering
+% parameters in params.filtering, and re-run the filtering step.
 
 %% ----------------------------------------------------------------------------------
 % Preprocessing Step 2: Estimate noise covariance and whiten
@@ -62,81 +64,70 @@ filtdata = FilterData(data, params);
 % Estimate and whiten the noise, assuming channel/time separability. This makes the
 % L2-norm portion of the CBP objective into a sum of squares, simplifying the
 % computation and improving computational efficiency.
-%   - find "noise zones" (regions of length min_zone_len or more 
-%     samples whose cross-channel L2-norm are below noise_threshold).
+%   - find "noise zones"
 %   - compute noise auto-correlation function from these zones
 %   - whiten each channel in time with the inverse matrix sqrt of the auto-correlation
 %   - whiten across channels with inverse matrix sqrt of the covariance matrix.
-% Whitening parameters:
-%   - whitening.noise_threshold : rms signal magnitude (over channels) is 
-%     compared to this value to determine noise regions.
-%   - reg_const : a regularization constant, added to diagonal of measured covariance.
+% params.whitening includes:
+%   - noise_threshold: noise zones must have cross-channel L2-norm less than this.
+%   - min_zone_len: noise zones must have duration of at least this many samples.
+%   - num_acf_lags: number of samples over which auto-correlation is estimated.
 
 data_pp = WhitenNoise(filtdata, params);
 
 % Diagnostics for whitening:
-% Fig 4: original vs. whitened autocorrelation(s),  should be close to a delta
+% Fig 4: original vs. whitened autocorrelation(s), should be close to a delta
 %   function (1 at 0, 0 elsewhere).  If not, try increasing
-%   params.whitening.num_acf_lags.  If auto-corrlation is noisy, there may not be
+%   params.whitening.num_acf_lags.  If auto-correlation is noisy, there may not be
 %   enough data samples for estimation.  This can be improved by a. increasing
 %   params.whitening.noise_threshold (allow more samples) b. decreasing
 %   params.whitening.num_acf_lags c. decreasing params.whitening.min_zone_len (allow
 %   shorter noise zones).
-% Fig 5 (for multi-electrodes only): cross-channel correlation,
-%   should look like the identity matrix. If not, a. increase
-%   params.whitening.num_acf_lags or b. increase
-%   params.whitening.min_zone_len .  Note that this trades off with
-%   the quality the estimates (see prev).
+% Fig 5 (multi-electrodes only): cross-channel correlation, should look like the
+%   identity matrix. If not, a. increase params.whitening.num_acf_lags or b. increase
+%   params.whitening.min_zone_len .  Note that this trades off with the quality of
+%   the estimates (see prev).
 % Fig 1: Highlighted segments of whitened data (green) will be used to estimate
 %   waveforms in the next step.  These should contain spikes (and non-highlighted
-%   regions should contain background noise).  
+%   regions should contain background noise).  Don't worry about getting all the
+%   spikes: these are only used to initialize the waveforms!
 % Fig 3, Top: Histograms of whitened channels - central portion should look
 %   Gaussian. Bottom: Histogram of across-channel magnitude, with magnitudes of
-%   highlighted segments in green.  If spikes are in noise regions, reduce params.whitening.threshold
+%   highlighted segments in green.  If lots of spikes are in noise regions, reduce
+%   params.whitening.noise_threshold
 
 %% ----------------------------------------------------------------------------------
 % Preprocessing Step 3: Estimate initial spike waveforms
 
-% Initialize spike waveforms using clustering:
+% Initialize spike waveforms, using clustering:
 %  - collect data windows with L2-norm larger than params.clustering.spike_threshold
-%  - align peaks of these windows
-%  - Perform PCA on these segments
-%  - Perform K-means clustering in the subspace of the principal components
-%    accounting for params.clustering.percent_variance portion of the total variance.
-% Parameters:
-%  - num_waveforms : number of cells to be recovered from data.
-%  - waveform_len : length (in samples) of spike waveforms.
-%  - threshold : threshold used to pick spike-containing data segments (in stdevs)
-%  - align_mode : During the clustering stage used to initialize spike waveforms,
-%       segments of the trace are identified using a threshold. These segments are
-%       then aligned based on this parameter. Supported values are:
-%            maxrms : align wrt max L2 norm (RMS) value in segment
-%            maxabs : align wrt max L1 norm value in segment
-%            max : max signed sum across electrodes
-%            min : min signed sum across electrodes
-%       For example, if the spike waveforms always have large positive (negative)
-%       peaks, use max (min).
+%  - align peaks of waveforms within these windows
+%  - Perform PCA on these segments, select a subspace containing desired percent of variance
+%  - Perform K-means clustering in this subspace
+% params.clustering includes:
+%  - num_waveforms : number of cells to be recovered
+%  - spike_threshold : threshold used to pick spike-containing data segments (in stdevs)
+%  - percent_variance : used to determine number of principal components to use for clustering
 
 [centroids, assignments, X, XProj, PCs, segment_centers_cl] = ...
     EstimateInitialWaveforms(data_pp, params);
 
+init_waveforms = waveformMat2Cell(centroids, params.general.waveform_len, ...
+                                  data_pp.nchan, params.clustering.num_waveforms);
+
 if (params.general.plot_diagnostics)
   VisualizeClustering(XProj, assignments, X, data_pp.nchan, ...
-		      params.plotting.first_fig_num+3, ...
-		      params.clustering.spike_threshold);
+                      params.plotting.first_fig_num+3, ...
+                      params.clustering.spike_threshold);
 end
-
-% Gather centroids into a cellarray, for use in CBP
-init_waveforms = waveformMat2Cell(centroids, params.general.waveform_len, ...
-				  data_pp.nchan, params.clustering.num_waveforms);
 
 % For later comparisons, also compute spike times corresponding to the segments
 % assigned to each cluster:
 spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 
-% Diagnostics for clustering waveform initialization: 
-% At this point, waveforms of all potential cells should be identified (note that
-% missed or false positive spikes are irrelevant - only the WAVEFORMS matter).  If
+% Diagnostics for waveform initialization: 
+% At this point, waveforms of all potential cells should be identified (again:
+% spike identification errors are irrelevant - only the WAVEFORMS matter).  If
 % not, may need to adjust params.clustering.num_waveforms and re-run the clustering
 % to identify more/fewer cells.  May also wish to adjust the
 % params.general.waveform_len, increasing it if the waveforms (Fig 5) are being
@@ -145,110 +136,149 @@ spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 % since the waveform_len affects the identification of noise regions.
 
 %% ----------------------------------------------------------------------------------
-% CBP setup
+% CBP step 1: use CBP to estimate spike times
 
-% Partition data into snippets, separated by "noise zones" in which the RMS of the
-% waveforms does not surpass "threshold" for at least "min_separation_len"
-% consecutive samples. Snippets are constrained to have duration between
-% min/max_snippet_len.  NOTE: This is for computational speedup only, so choose a
-% conservative (low) threshold to avoid dropping spikes!
+% To speed up computation, partition data into "snippets", which will be processed
+% independently. Snippets have duration between min/max_snippet_len and are separated
+% by "noise zones" in which the RMS of the waveforms does not surpass "threshold" for
+% at least "min_separation_len" consecutive samples. Choose a conservative (low)
+% threshold to avoid dropping spikes!
 
 [snippets, breaks, snippet_lens, snippet_centers, snippet_idx] = ...
     PartitionSignal(data_pp.data, params.partition);
 
-%%** MOVE THIS (where?)
-% Set the reweighting function for the Iteration Reweighted L1 optimization
-% for inferring the spikes.  Updated weight for a coefficient
-% x should be set to -d/dz(log(P(z)))|z=x where P(z) is the prior distribution
-% on the spike amplitudes. Here we employ a power-law distribution for 
-% 0 <= x <= M with exponent=reweight_exp and offset=eps1
-num_waveforms=length(init_waveforms);
-reweight_exp = 1.5 * ones(1, num_waveforms);
-params.cbp.lambda = reweight_exp(:); % multiplier for sparsity weight
-params.cbp.reweight_fn = cell(num_waveforms, 1);
-for i = 1 : num_waveforms
-    params.cbp.reweight_fn{i} = @(x) reweight_exp(i) ./ (eps + abs(x));    
-end
-
-%% ----------------------------------------------------------------------------------
-% CBP step 1: use CBP to estimate spike times of all cells
-
-params.cbp.progress = true; % Set false if progress bar causes Java errors
-
+% params.cbp.progress = false; % Turn off Java progress bar if it causes errors
+%** fix "Processing chunk..." message
 starttime = tic;
 [spike_times, spike_amps, recon_snippets] = ...
-    SpikesortCBP(snippets, snippet_centers, init_waveforms, ...
-                 params.cbp_outer, params.cbp);
+    SpikesortCBP(snippets, snippet_centers, init_waveforms, params.cbp_outer, params.cbp);
 toc(starttime);
+    
+% Choose amplitude thresholds.  Fig7 allows interactive adjustment of waveform
+% amplitudes, while interactively visualizing effect on ACorr/XCorr.  Top row shows
+% amplitude distribution (typical spikes should have amplitude 1), with thresholds
+% indicated by red lines.  Bottom row shows spike train autocorrelation that would
+% result from chosen threshold, and can be examined for refractory violations.
+% Middle rows show spike train cross-correlations across pairs of cells, and can be
+% examined for dropped synchronous spikes (very common with clustering methods).
+% Adjust the thresholds by dragging red lines for each cell independently. Quit by
+% closing the figure window.
+% ** add "Done" button to terminate GUI, leaving figure open.
+[atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, ...
+                                             'f', params.plotting.first_fig_num+6);
 
-% ***FIX: 
-%% After running CBP, display should show: 
-%   Fig2: amplitude distributions, with threshold, and threshold sensitivities for each cell;
-%         ACF, CCF, and firing rates for current threshold choice;
-%% After choosing thresholds, should show:
-%   Fig1a: whitened data, with recovered spikes indicated (colored points)
-%   Fig1b: residual data (spikes removed)
-%   Fig3: histograms, both raw, and cross-channel magnitudes, of residuals
-%   Fig 4: projection into PC space of segments, with spike assignments (as in paper)
-%% After re-computing waveforms, should show:
-%   Fig5: New waveforms, compared to initial
-
+%%*** hide this stuff somewhere else!
 if (params.general.plot_diagnostics)
-  data_recon = cell(size(snippets));
-  for i = 1:numel(snippets)
-    data_recon{i} = snippets{i} - recon_snippets{i};
+  %%** Display data, with recovered spikes, and residuals
+  nchan=size(data_pp.data,1);
+  figure(params.plotting.first_fig_num); clf
+%  set(gcf, 'MenuBar', 'none');
+  subplot(2,1,1);  
+  inds = params.plotting.dataPlotInds;
+  plot((inds-1)*data_pp.dt, data_pp.data(:,inds)');
+  axis tight
+  yrg = get(gca,'Ylim');   xrg = get(gca,'Xlim');
+  title('Data, filtered+whitened');
+  subplot(2,1,2);
+  bandHt = 0.12;
+  yinc = bandHt*(yrg(2)-yrg(1))/length(init_waveforms);
+  clrs = hsv(length(init_waveforms));
+  patch([xrg'; xrg(2); xrg(1)], [yrg(2)*[1;1]; (yrg(1)+(1+bandHt)*(yrg(2)-yrg(1)))*[1;1]], ...
+	0.9*[1 1 1], 'EdgeColor', 0.9*[1 1 1]);
+  set(gca,'Ylim', [yrg(1), yrg(2)+bandHt*(yrg(2)-yrg(1))]);
+  hold on
+  %%** what amplitudes to use here?
+  for n=1:length(init_waveforms)
+    spkInds = spike_times{n}((spike_times{n} > inds(1)) & (spike_times{n} < inds(end)));
+    plot((spkInds-1)*data_pp.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(spkInds)), '.', 'Color', clrs(n,:));
+    trace = zeros(length(inds),nchan);   trace(round(spkInds)-inds(1)+1,:) = 1;
+    trace = conv2(trace, reshape(init_waveforms{n},[],nchan), 'same');
+    plot((inds-1)*data_pp.dt, trace', 'Color', clrs(n,:));
   end
-  wnsnip = cellfun(@(s) windowed_norm(s', params.general.waveform_len), snippets, 'UniformOutput', false);
-  wnbreak = windowed_norm(cell2mat(breaks')', params.general.waveform_len);
-  wnresid = cellfun(@(s) windowed_norm(s', params.general.waveform_len), data_recon, 'UniformOutput', false);
-  
-  figure(params.plotting.first_fig_num+2);
-  [N,X] = hist(cell2mat(wnsnip')', 100);
-  % Nbreak = hist(wnbreak', X);
-  Nresid = hist(cell2mat(wnresid')', X);
-  chi = 2*X.*chi2pdf(X.^2, nchan*params.general.waveform_len);
-  bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
+  hold off
+  xlabel('time (sec)');
+  title('Spikes recovered by CBP');
+
+  % Residual Histograms
+  figure(params.plotting.first_fig_num+1); clf
+  resid = cell2mat(cellfun(@(c,cr) c-cr, snippets, recon_snippets, 'UniformOutput', false));
+  subplot(2,1,1); 
+  %mx = max(cellfun(@(c) max(abs(c(:))), snippets));
+  mx = max(abs(data_pp.data(:)));
+  [N, Xax] = hist(resid, mx*[-50:50]/101);
+  plot(Xax,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
+  hold on
+  gh=plot(Xax, max(N(:))*exp(-(Xax.^2)/2), 'r', 'LineWidth', 2); 
+  plot(Xax,N); set(gca,'Ylim',rg); set(gca, 'Xlim', [-mx mx]); 
+  hold off; 
+  if (nchan < 1.5)
+    title('Histogram, filtered/whitened data with spikes removed');
+  else
+    title(sprintf('Histograms, filtered/whitened data with spikes removed (%d channels)', nchan));
+  end
+  legend(gh, 'univariate Gaussian');
+  subplot(2,1,2); 
+  mx = max(sqrt(sum(data_pp.data.^2,1)));
+  [N,Xax] = hist(sqrt(sum(resid.^2, 2)), mx*[0:100]/100);
+  chi = 2*Xax.*chi2pdf(Xax.^2, nchan);
+  bar(Xax,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim'); 
   hold on;
-  % plot(X,(max(N)/max(Nbreak))*Nbreak,'r','LineWidth', 2);
-  plot(X,(max(N)/max(Nresid))*Nresid, 'g', 'LineWidth', 2);
-  plot(X,(max(N)/max(chi))*chi, 'c','LineWidth', 2);
-  hold off; set(gca,'Ylim', yrg);
-  legend('all snippets', 'snippet post-CBP residuals', 'expected noise (Chi)');
-  title('Histogram of windowed 2-norms');
+  ch= plot(Xax, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
+  hold off; set(gca, 'Ylim', yrg); set(gca, 'Xlim', [0 mx]);
+  title('Histogram, magnitude over filtered/whitened channel(s), with spikes removed');
+  legend(ch, 'chi-distribution, univariate Gaussian');
+
+  %% PC scatter plot.  *** Is this useful??
+  figure(params.plotting.first_fig_num+5); clf
+  wfs = cell2mat(cellfun(@(c) c(:), init_waveforms, 'UniformOutput', false));
+  thresh= params.clustering.spike_threshold;
+    
+%  if (size(wfs,2)<3), wfs = [wfs, PCs(:, 3-size(wfs,2))]; end
+%  [ax,s] = svd(wfs);  ax = ax(:,[1,2]);
+  ax = PCs(:,[1,2]);
+
+  proj_wfs = ax'*wfs;
+
+  %% YUK
+  cluster_pars = params.clustering;
+  if isempty(cluster_pars.window_len), cluster_pars.window_len = params.general.waveform_len; end
+  cluster_pars.align_mode = data_pp.polarity;
+
+  proj_snippets = []; snippet_ids = []; snippet_dist2wf = [];
+  for n=1:size(wfs,2)
+    %***Shouldn't have to round the times!
+    snippets = ax'*ConstructSnippetMatrix(data_pp.data, round(spike_times{n}), cluster_pars);
+    proj_snippets = [proj_snippets, snippets];
+    distances = sqrt(sum((snippets-repmat(proj_wfs(:,n),1,size(snippets,2))).^2))';
+    snippet_dist2wf = [snippet_dist2wf; distances];
+    snippet_ids = [snippet_ids; n*ones(length(distances), 1)];
+  end
+  
+  hold on
+  for n=1:size(wfs,2) %plot central cluster first
+    sn = proj_snippets(:, ((snippet_ids==n)&(snippet_dist2wf<thresh)));
+    plot(sn(1,:), sn(2,:), '.', 'Color', 0.5*clrs(n,:)+0.5*[1 1 1]);
+  end
+  for n=1:size(wfs,2) %then plot outliers
+    sn = proj_snippets(:, ((snippet_ids==n)&(snippet_dist2wf>=thresh)));
+    plot(sn(1,:), sn(2,:), '.', 'Color', 0.5*clrs(n,:)+0.5*[1 1 1]);
+    plot(proj_wfs(1,n), proj_wfs(2,n), 'o', 'MarkerSize', 9, 'LineWidth', 2,...
+	 'MarkerEdgeColor', 'black', 'MarkerFaceColor', clrs(n,:));
+  end
+  xl = get(gca, 'XLim'); yl = get(gca, 'YLim');
+  plot([0 0], yl, '-', 'Color', 0.8 .* [1 1 1]);
+  plot(xl, [0 0], '-', 'Color', 0.8 .* [1 1 1]);
+  th=linspace(0, 2*pi, 64);
+  nh= plot(thresh*sin(th),thresh*cos(th), 'k', 'LineWidth', 2);
+  legend(nh,sprintf('spike threshold = %.1f',thresh));
+  axis equal
+  hold off
+  xlabel('PC 1'); ylabel('PC 2');  title('CBP results');
 end
 
-% Initial CBP diagnostics: (Unnecessary?)
-% Residual should not have high-amplitude regions (if it does, increase
-% params.cbp.firing_rates, and re-run CBP).
-    
-%% ----------------------------------------------------------------------------------
-% Pick amplitude thresholds and interactively visualize effect on ACorr/XCorr
-
-% Allow this much slack in time bins of spike locations, for live updating 
-% ground truth feedback
-% **TODO: Why is slack parameter needed here?
-% **TODO: Just make this a default value, either 30 or 40 inside relevant
-% functions.  But first have to decide whether to try to reshift spike
-% times to remove filtering-induced shifts, and shifts in ground truth
-% data (e.g. intracellular electrode time lead).
-spike_location_slack = 30; 
-
-% Interactive selection of final thresholds for spike detection.  Top
-% row of Figure 9 shows the distribution of amplitudes for each
-% waveform (normalized, average spike has amplitude 1).  Bottom row
-% shows the spike-conditioned raster for each cell, used to check for
-% refractory violations.  Middle rows show spike-conditioned rasters
-% across pairs of cells, and is used to check for dropped synchronous
-% spikes (very common with clustering methods).  The figure comes up with 
-% automatic values chosen.  You can adjust the
-% thresholds by dragging red lines for each cell independently. Quit
-% by closing the figure window.
-[atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, 'location_slack', spike_location_slack);
-
-% Diagnostics for CBP spike-detection: 
-% Amplitudes should be around 1, Auto-correlations should show zero spikes in the
-% refractory period (roughly 1-3msec), and Cross-correlations should not have a
-% narrow notch around zero (common in clustering methods).
+%   Fig1: whitened data, and recovered spikes
+%   Fig2: residual histograms (raw, and cross-channel magnitudes) (compare to Fig3)
+%   Fig6: projection into PC space of segments, with spike assignments (as in paper)
 
 %% ----------------------------------------------------------------------------------
 % CBP Step 2: re-estimate waveforms
@@ -263,34 +293,40 @@ for i = 1:numel(spike_times)
 end
 
 % Compare updated waveforms to initial estimates
+%*** Hide this stuff somewhere else!
 if (params.general.plot_diagnostics)
-    figure(params.plotting.first_fig_num+1);
+  num_waveforms = length(waveforms);
+  nchan=size(data_pp.data,1);
+    figure(params.plotting.first_fig_num+4);
     nc = ceil(sqrt(num_waveforms));
     nr = ceil(num_waveforms / nc);
-
+    chSpace = 13; %**magic number, also in VisualizeClustering
+    spacer = ones(params.general.waveform_len, 1) * ([1:nchan]-1)*chSpace;
     for i = 1:numel(waveforms)
         subplot(nr, nc, i);
-        inith = plot(init_waveforms{i}, 'b');
+        inith = plot(reshape(init_waveforms{i},[],nchan)+spacer, 'b');
         hold on
-        finalh = plot(waveforms{i}, 'r');
+        finalh = plot(reshape(waveforms{i},[],nchan)+spacer, 'r');
         hold off
         err = norm(init_waveforms{i} - waveforms{i})/...
               norm(waveforms{i});
-        title(sprintf('Waveform %d, Rel error=%.2f', i, err))
+        title(sprintf('Waveform %d, change=%.0f%%', i, 100*err))
         legend([inith(1) finalh(1)], {'Initial', 'New'});
     end
 end
 
-% Diagnostics for CBP waveforms: 
+% Diagnostics for CBP waveforms:
 % If recovered waveforms differ significantly from initial waveforms, then algorithm
 % has not yet converged.  Execute this and go back to re-run CBP:
 %     init_waveforms = waveforms;
 
-%**TODO: Visualize waveforms/spikes in PC space, compared to clustering result.
-% Allow user to modify or increase/decrease number of waveforms.
+
 
 %% ----------------------------------------------------------------------------------
-% Post-analysis: Comparison to clustering results, and to ground truth (if available)
+% Post-analysis: Comparison to clustering results, and to ground truth (if
+% available)
+
+%** indicate which cells match ground truth.
 
 ground_truth = load(data_pp.filename, 'true_spike_times', 'true_spike_class', 'dt');
 ground_truth.filename = data_pp.filename;
@@ -322,7 +358,7 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
 
   % Evaluate CBP sorting
   [total_misses, total_false_positives, prune_est_times, misses, false_positives] = ...
-     EvaluateSorting(spike_times, spike_amps, ground_truth.true_sp, 'threshold', amp_threshold, 'location_slack', spike_location_slack);
+     EvaluateSorting(spike_times, spike_amps, ground_truth.true_sp, 'threshold', amp_threshold, 'location_slack', ground_truth.spike_location_slack);
   fprintf('       CBP: %s', SortingEvaluationStr(ground_truth.true_sp, prune_est_times, total_misses, total_false_positives));
 
 end
@@ -372,7 +408,8 @@ if isfield(ground_truth, 'true_spike_class') && isfield(ground_truth, 'true_spik
 
     Xstar = ConstructSnippetMatrix(data_pp.data, ground_truth.true_spike_times, cluster_pars);
     % Remove mean component and project onto leading PC's
-    XProjstar = (Xstar - repmat(mean(Xstar, 2), 1, size(Xstar, 2)))' * PCs;
+%    XProjstar = (Xstar - repmat(mean(Xstar, 2), 1, size(Xstar, 2)))' * PCs;
+XProjstar=Xstar'*PCs;
     VisualizeClustering(XProjstar, ground_truth.true_spike_class, Xstar, size(data_pp, 1), ...
                         figure(8), figure(9), '.');    
     
@@ -402,4 +439,6 @@ end
 %% ----------------------------------------------------------------------------------
 % Get greedy spike matches and plot RoC-style
 % NB: Much faster if mex greedymatchtimes.c is compiled
+%*** show chosen threshold in top plot
+%*** also show log # spikes found?
 PlotCBPROC(spike_times, spike_amps, ground_truth.true_sp, ground_truth.spike_location_slack);

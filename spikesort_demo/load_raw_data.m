@@ -7,8 +7,11 @@ function [d, params] = load_raw_data(identifier, params)
 %   data: channel x time matrix of voltage traces
 %   dt : the temporal sampling interval (in seconds)
 % The file may optionally also contain:
-%   polarity : 'max' or 'min', indicating whether primary voltage
-%              deflections are positive or negative.
+%   polarity : determines how waveforms are aligned for clustering step:
+%            maxrms : align wrt max L2 norm (RMS) value in segment
+%            maxabs : align wrt max L1 norm value in segment
+%            max : max signed sum across electrodes
+%            min : min signed sum across electrodes
 %   true_spike_times : vector of ground truth spike times, if known
 %   true_spike_class : vector of numerical cell labels for each time
 
@@ -31,7 +34,7 @@ switch identifier
         d = load(filename, 'data', 'dt');
         d.polarity = 'min';
    
-        params.filtering.freq = [800 1e4];  % Low/high cutoff in Hz
+        params.filtering.freq = [400 1e4];  % Low/high cutoff in Hz
   
     otherwise
         error('Unrecognized dataset identifier', identifier);
@@ -53,12 +56,15 @@ if (d.dt > 1/5000)
 end
 
 if (params.general.plot_diagnostics)
-    plotDur = min(2400,d.nsamples);   %** magic number: should be a parameter
+    plotDur = min(3000,d.nsamples);   %** magic number: should be a parameter
     plotT0 = round((d.nsamples-plotDur)/2);
     inds = plotT0+[1:plotDur];
     params.plotting.dataPlotInds = inds;
 
-    figure(params.plotting.first_fig_num); clf; subplot(3,1,1); 
+    figure(params.plotting.first_fig_num); clf; 
+    scrsz =  get(0,'ScreenSize');
+    set(gcf, 'Name', 'Data', 'OuterPosition', [1 1 scrsz(3)/2 scrsz(4)/3]);
+    subplot(3,1,1); 
     plot([inds(1), inds(end)]*d.dt, [0 0], 'k'); 
     hold on; plot((inds-1)*d.dt, d.data(:,inds)'); hold off
     axis tight; xlabel('time (sec)');  ylabel('voltage'); 

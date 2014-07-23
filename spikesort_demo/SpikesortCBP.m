@@ -36,6 +36,17 @@ cbp_pars.spacings = ...
 [cbp_pars.precompgps cbp_pars.precompdicts] = ...
     PrecomputeDictionaries(waveforms, cbp_pars.spacings, snippets);
 
+if (numel(cbp_pars.lambda)==1)
+  cbp_pars.lambda = cbp_pars.lambda * ones(numel(waveforms), 1);
+end
+
+if (numel(cbp_pars.reweight_fn)==1)
+  fn = cbp_pars.reweight_fn;
+  cbp_pars.reweight_fn = cell(numel(waveforms),1);  
+  for n=1:numel(waveforms)
+    cbp_pars.reweight_fn{n} = fn;
+  end
+end
 
 fprintf('Inferring spikes for whole data set...\n');
 fprintf('Spacing=%s Lambda%s\n', ...
