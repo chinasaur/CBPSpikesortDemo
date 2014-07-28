@@ -73,9 +73,12 @@ peak_idx = find(peak_idx);
 function [PCs, XProj] = TruncatePCs(X, percent_variance)
 fprintf('Doing PCA...');
 % Get PCs
-%[PCs, Xproj, latent] = princomp(X');
-[PCs, Xproj, latent] = pca(X', 'Centered', false);
-%[PCs, Xproj, latent] = pca(X');
+if exist('pca', 'file')
+    %[PCs, Xproj, latent] = pca(X');
+    [PCs, Xproj, latent] = pca(X', 'Centered', false);
+else
+    [PCs, Xproj, latent] = princomp(X');
+end
 [latent sorted_idx] = sort(latent, 'descend');
 PCs = PCs(:,sorted_idx);
 Xproj = Xproj(:, sorted_idx);
