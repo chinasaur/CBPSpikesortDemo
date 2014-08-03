@@ -153,127 +153,145 @@ starttime = tic;
 [spike_times, spike_amps, recon_snippets] = ...
     SpikesortCBP(snippets, snippet_centers, init_waveforms, params.cbp_outer, params.cbp);
 toc(starttime);
+
+%% ----------------------------------------------------------------------------------
+% Choose amplitude thresholds. 
+%
+% KDE thresholds provide automatic initial estimates of amp_thresholds, 
+% attempting to split off low amplitude errors.
+%
+% Fig 7 displays the current amp_thresholds and the corresponding spike
+% autocorrelation and crosscorrelation functions after discarding detected
+% spikes with amplitudes below threshold.  Current thresholds are indicated
+% by red lines.
+%
+% If the image processing toolbox is installed, thresholds can be
+% manipulated interactively by dragging the red lines left and right.
+% Autocorrelation and crosscorrelation plots will update using the new
+% accepted spike populations.  To save the updated amp_thresholds out to
+% the workspace, use the 'CBP->Export amp_thresholds to workspace'
+% pull-down menu item.
+
+% Calculate initial KDE thresholds.
+if ~exist('amp_thresholds', 'var')
+    amp_thresholds = cellfun(...
+        @(sa) ComputeKDEThreshold(sa, params.amplitude), ...
+        spike_amps);
+end
+
+% Interactively adjust thresholds.
+atgf = AmplitudeThresholdGUI(spike_amps, spike_times, amp_thresholds,    ...
+                             'dt', data_pp.dt, ...
+                             'f', params.plotting.first_fig_num + 6,    ...
+                             'location_slack', params.postproc.spike_location_slack);
+
+%% *** hide this stuff somewhere else!
+if params.general.plot_diagnostics == true
+    % ** Display data, with recovered spikes, and residuals
+    nchan=size(data_pp.data,1);
+    figure(params.plotting.first_fig_num); clf
+    %  set(gcf, 'MenuBar', 'none');
+    subplot(2,1,1);
+    inds = params.plotting.dataPlotInds;
+    plot((inds-1)*data_pp.dt, data_pp.data(:,inds)');
+    axis tight
+    yrg = get(gca,'Ylim');   xrg = get(gca,'Xlim');
+    title('Data, filtered+whitened');
+    subplot(2,1,2);
+    bandHt = 0.12;
+    yinc = bandHt*(yrg(2)-yrg(1))/length(init_waveforms);
+    clrs = hsv(length(init_waveforms));
+    patch([xrg'; xrg(2); xrg(1)], [yrg(2)*[1;1]; (yrg(1)+(1+bandHt)*(yrg(2)-yrg(1)))*[1;1]], ...
+        0.9*[1 1 1], 'EdgeColor', 0.9*[1 1 1]);
+    set(gca,'Ylim', [yrg(1), yrg(2)+bandHt*(yrg(2)-yrg(1))]);
+    hold on
+    % ** what amplitudes to use here?
+    for n=1:length(init_waveforms)
+        spkInds = spike_times{n}((spike_times{n} > inds(1)) & (spike_times{n} < inds(end)));
+        plot((spkInds-1)*data_pp.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(spkInds)), '.', 'Color', clrs(n,:));
+        trace = zeros(length(inds),nchan);   trace(round(spkInds)-inds(1)+1,:) = 1;
+        trace = conv2(trace, reshape(init_waveforms{n},[],nchan), 'same');
+        plot((inds-1)*data_pp.dt, trace', 'Color', clrs(n,:));
+    end
+    hold off
+    xlabel('time (sec)');
+    title('Spikes recovered by CBP');
     
-% Choose amplitude thresholds.  Fig7 allows interactive adjustment of waveform
-% amplitudes, while interactively visualizing effect on ACorr/XCorr.  Top row shows
-% amplitude distribution (typical spikes should have amplitude 1), with thresholds
-% indicated by red lines.  Bottom row shows spike train autocorrelation that would
-% result from chosen threshold, and can be examined for refractory violations.
-% Middle rows show spike train cross-correlations across pairs of cells, and can be
-% examined for dropped synchronous spikes (very common with clustering methods).
-% Adjust the thresholds by dragging red lines for each cell independently. Quit by
-% closing the figure window.
-% ** add "Done" button to terminate GUI, leaving figure open.
-[atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, ...
-                                             'f', params.plotting.first_fig_num+6);
-
-%%*** hide this stuff somewhere else!
-if (params.general.plot_diagnostics)
-  %%** Display data, with recovered spikes, and residuals
-  nchan=size(data_pp.data,1);
-  figure(params.plotting.first_fig_num); clf
-%  set(gcf, 'MenuBar', 'none');
-  subplot(2,1,1);  
-  inds = params.plotting.dataPlotInds;
-  plot((inds-1)*data_pp.dt, data_pp.data(:,inds)');
-  axis tight
-  yrg = get(gca,'Ylim');   xrg = get(gca,'Xlim');
-  title('Data, filtered+whitened');
-  subplot(2,1,2);
-  bandHt = 0.12;
-  yinc = bandHt*(yrg(2)-yrg(1))/length(init_waveforms);
-  clrs = hsv(length(init_waveforms));
-  patch([xrg'; xrg(2); xrg(1)], [yrg(2)*[1;1]; (yrg(1)+(1+bandHt)*(yrg(2)-yrg(1)))*[1;1]], ...
-	0.9*[1 1 1], 'EdgeColor', 0.9*[1 1 1]);
-  set(gca,'Ylim', [yrg(1), yrg(2)+bandHt*(yrg(2)-yrg(1))]);
-  hold on
-  %%** what amplitudes to use here?
-  for n=1:length(init_waveforms)
-    spkInds = spike_times{n}((spike_times{n} > inds(1)) & (spike_times{n} < inds(end)));
-    plot((spkInds-1)*data_pp.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(spkInds)), '.', 'Color', clrs(n,:));
-    trace = zeros(length(inds),nchan);   trace(round(spkInds)-inds(1)+1,:) = 1;
-    trace = conv2(trace, reshape(init_waveforms{n},[],nchan), 'same');
-    plot((inds-1)*data_pp.dt, trace', 'Color', clrs(n,:));
-  end
-  hold off
-  xlabel('time (sec)');
-  title('Spikes recovered by CBP');
-
-  % Residual Histograms
-  figure(params.plotting.first_fig_num+1); clf
-  resid = cell2mat(cellfun(@(c,cr) c-cr, snippets, recon_snippets, 'UniformOutput', false));
-  subplot(2,1,1); 
-  %mx = max(cellfun(@(c) max(abs(c(:))), snippets));
-  mx = max(abs(data_pp.data(:)));
-  [N, Xax] = hist(resid, mx*[-50:50]/101);
-  plot(Xax,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
-  hold on
-  gh=plot(Xax, max(N(:))*exp(-(Xax.^2)/2), 'r', 'LineWidth', 2); 
-  plot(Xax,N); set(gca,'Ylim',rg); set(gca, 'Xlim', [-mx mx]); 
-  hold off; 
-  if (nchan < 1.5)
-    title('Histogram, filtered/whitened data with spikes removed');
-  else
-    title(sprintf('Histograms, filtered/whitened data with spikes removed (%d channels)', nchan));
-  end
-  legend(gh, 'univariate Gaussian');
-  subplot(2,1,2); 
-  mx = max(sqrt(sum(data_pp.data.^2,1)));
-  [N,Xax] = hist(sqrt(sum(resid.^2, 2)), mx*[0:100]/100);
-  chi = 2*Xax.*chi2pdf(Xax.^2, nchan);
-  bar(Xax,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim'); 
-  hold on;
-  ch= plot(Xax, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
-  hold off; set(gca, 'Ylim', yrg); set(gca, 'Xlim', [0 mx]);
-  title('Histogram, magnitude over filtered/whitened channel(s), with spikes removed');
-  legend(ch, 'chi-distribution, univariate Gaussian');
-
-  %% PC scatter plot.  *** Is this useful??
-  figure(params.plotting.first_fig_num+5); clf
-  wfs = cell2mat(cellfun(@(c) c(:), init_waveforms, 'UniformOutput', false));
-  thresh= params.clustering.spike_threshold;
+    % Residual Histograms
+    figure(params.plotting.first_fig_num+1); clf
+    resid = cell2mat(cellfun(@(c,cr) c-cr, snippets, recon_snippets, 'UniformOutput', false));
+    subplot(2,1,1);
+    %mx = max(cellfun(@(c) max(abs(c(:))), snippets));
+    mx = max(abs(data_pp.data(:)));
+    [N, Xax] = hist(resid, mx*[-50:50]/101);
+    plot(Xax,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
+    hold on
+    gh=plot(Xax, max(N(:))*exp(-(Xax.^2)/2), 'r', 'LineWidth', 2);
+    plot(Xax,N); set(gca,'Ylim',rg); set(gca, 'Xlim', [-mx mx]);
+    hold off;
+    if (nchan < 1.5)
+        title('Histogram, filtered/whitened data with spikes removed');
+    else
+        title(sprintf('Histograms, filtered/whitened data with spikes removed (%d channels)', nchan));
+    end
+    legend(gh, 'univariate Gaussian');
+    subplot(2,1,2);
+    mx = max(sqrt(sum(data_pp.data.^2,1)));
+    [N,Xax] = hist(sqrt(sum(resid.^2, 2)), mx*[0:100]/100);
+    chi = 2*Xax.*chi2pdf(Xax.^2, nchan);
+    bar(Xax,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
+    hold on;
+    ch= plot(Xax, (max(N)/max(chi))*chi, 'r', 'LineWidth', 2);
+    hold off; set(gca, 'Ylim', yrg); set(gca, 'Xlim', [0 mx]);
+    title('Histogram, magnitude over filtered/whitened channel(s), with spikes removed');
+    legend(ch, 'chi-distribution, univariate Gaussian');
     
-%  if (size(wfs,2)<3), wfs = [wfs, PCs(:, 3-size(wfs,2))]; end
-%  [ax,s] = svd(wfs);  ax = ax(:,[1,2]);
-  ax = PCs(:,[1,2]);
-
-  proj_wfs = ax'*wfs;
-
-  %% YUK
-  cluster_pars = params.clustering;
-  if isempty(cluster_pars.window_len), cluster_pars.window_len = params.general.waveform_len; end
-  cluster_pars.align_mode = data_pp.polarity;
-
-  proj_snippets = []; snippet_ids = []; snippet_dist2wf = [];
-  for n=1:size(wfs,2)
-    %***Shouldn't have to round the times!
-    snippets = ax'*ConstructSnippetMatrix(data_pp.data, round(spike_times{n}), cluster_pars);
-    proj_snippets = [proj_snippets, snippets];
-    distances = sqrt(sum((snippets-repmat(proj_wfs(:,n),1,size(snippets,2))).^2))';
-    snippet_dist2wf = [snippet_dist2wf; distances];
-    snippet_ids = [snippet_ids; n*ones(length(distances), 1)];
-  end
-  
-  hold on
-  for n=1:size(wfs,2) %plot central cluster first
-    sn = proj_snippets(:, ((snippet_ids==n)&(snippet_dist2wf<thresh)));
-    plot(sn(1,:), sn(2,:), '.', 'Color', 0.5*clrs(n,:)+0.5*[1 1 1]);
-  end
-  for n=1:size(wfs,2) %then plot outliers
-    sn = proj_snippets(:, ((snippet_ids==n)&(snippet_dist2wf>=thresh)));
-    plot(sn(1,:), sn(2,:), '.', 'Color', 0.5*clrs(n,:)+0.5*[1 1 1]);
-    plot(proj_wfs(1,n), proj_wfs(2,n), 'o', 'MarkerSize', 9, 'LineWidth', 2,...
-	 'MarkerEdgeColor', 'black', 'MarkerFaceColor', clrs(n,:));
-  end
-  xl = get(gca, 'XLim'); yl = get(gca, 'YLim');
-  plot([0 0], yl, '-', 'Color', 0.8 .* [1 1 1]);
-  plot(xl, [0 0], '-', 'Color', 0.8 .* [1 1 1]);
-  th=linspace(0, 2*pi, 64);
-  nh= plot(thresh*sin(th),thresh*cos(th), 'k', 'LineWidth', 2);
-  legend(nh,sprintf('spike threshold = %.1f',thresh));
-  axis equal
-  hold off
-  xlabel('PC 1'); ylabel('PC 2');  title('CBP results');
+    % PC scatter plot.  *** Is this useful??
+    figure(params.plotting.first_fig_num+5); clf
+    wfs = cell2mat(cellfun(@(c) c(:), init_waveforms, 'UniformOutput', false));
+    thresh= params.clustering.spike_threshold;
+    
+    %  if (size(wfs,2)<3), wfs = [wfs, PCs(:, 3-size(wfs,2))]; end
+    %  [ax,s] = svd(wfs);  ax = ax(:,[1,2]);
+    ax = PCs(:,[1,2]);
+    
+    proj_wfs = ax'*wfs;
+    
+    % YUK
+    cluster_pars = params.clustering;
+    if isempty(cluster_pars.window_len), cluster_pars.window_len = params.general.waveform_len; end
+    cluster_pars.align_mode = data_pp.polarity;
+    
+    proj_snippets = []; snippet_ids = []; snippet_dist2wf = [];
+    for n=1:size(wfs,2)
+        %***Shouldn't have to round the times!
+        snippets = ax'*ConstructSnippetMatrix(data_pp.data, round(spike_times{n}), cluster_pars);
+        proj_snippets = [proj_snippets, snippets];
+        distances = sqrt(sum((snippets-repmat(proj_wfs(:,n),1,size(snippets,2))).^2))';
+        snippet_dist2wf = [snippet_dist2wf; distances];
+        snippet_ids = [snippet_ids; n*ones(length(distances), 1)];
+    end
+    
+    hold on
+    for n=1:size(wfs,2) %plot central cluster first
+        sn = proj_snippets(:, ((snippet_ids==n)&(snippet_dist2wf<thresh)));
+        plot(sn(1,:), sn(2,:), '.', 'Color', 0.5*clrs(n,:)+0.5*[1 1 1]);
+    end
+    for n=1:size(wfs,2) %then plot outliers
+        sn = proj_snippets(:, ((snippet_ids==n)&(snippet_dist2wf>=thresh)));
+        plot(sn(1,:), sn(2,:), '.', 'Color', 0.5*clrs(n,:)+0.5*[1 1 1]);
+        plot(proj_wfs(1,n), proj_wfs(2,n), 'o', 'MarkerSize', 9, 'LineWidth', 2,...
+            'MarkerEdgeColor', 'black', 'MarkerFaceColor', clrs(n,:));
+    end
+    xl = get(gca, 'XLim'); yl = get(gca, 'YLim');
+    plot([0 0], yl, '-', 'Color', 0.8 .* [1 1 1]);
+    plot(xl, [0 0], '-', 'Color', 0.8 .* [1 1 1]);
+    th=linspace(0, 2*pi, 64);
+    nh= plot(thresh*sin(th),thresh*cos(th), 'k', 'LineWidth', 2);
+    legend(nh,sprintf('spike threshold = %.1f',thresh));
+    axis equal
+    hold off
+    xlabel('PC 1'); ylabel('PC 2');  title('CBP results');
 end
 
 %   Fig1: whitened data, and recovered spikes
@@ -288,7 +306,7 @@ nlrpoints = (params.general.waveform_len-1)/2;
 waveforms = cell(size(spike_times));
 for i = 1:numel(spike_times)
     % Have to shift spiketimes by 1 because existing code treats data as 1 indexed.
-    sts = spike_times{i}(spike_times{i} > amp_threshold(i)) - 1;
+    sts = spike_times{i}(spike_times{i} > amp_thresholds(i)) - 1;
     waveforms{i} = CalcSTA(data_pp.data', sts, [-nlrpoints nlrpoints]);
 end
 
@@ -331,10 +349,6 @@ end
 ground_truth = load(data_pp.filename, 'true_spike_times', 'true_spike_class', 'dt');
 ground_truth.filename = data_pp.filename;
 
-% Acceptable slack for considering two spikes a match.  In units of samples.
-% Currently two-sided, but this should probably be changed.
-ground_truth.spike_location_slack = 30;
-
 if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spike_class')
     % Reformat as 1-cellarr per cell of spike times.
     ground_truth.true_sp = GetSpikeTimesFromAssignments(ground_truth.true_spike_times, ground_truth.true_spike_class);
@@ -343,7 +357,7 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
     [ground_truth.true_sp, ...
      ground_truth.true_spike_times, ... 
      ground_truth.true_spike_class] = ReorderCells( ...
-        ground_truth.true_sp, spike_times_cl, ground_truth.spike_location_slack);
+        ground_truth.true_sp, spike_times_cl, params.postproc.spike_location_slack);
 end
 
 if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spike_class')
@@ -353,19 +367,19 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
 
   % Evaluate clustering sorting
   [total_misses_cl, total_false_positives_cl, misses_cl, false_positives_cl] = ...
-      evaluate_sorting(spike_times_cl, ground_truth.true_sp, ground_truth.spike_location_slack);
+      evaluate_sorting(spike_times_cl, ground_truth.true_sp, params.postproc.spike_location_slack);
   fprintf('Clustering: %s', SortingEvaluationStr(ground_truth.true_sp, spike_times_cl, total_misses_cl, total_false_positives_cl));
 
   % Evaluate CBP sorting
   [total_misses, total_false_positives, prune_est_times, misses, false_positives] = ...
-     EvaluateSorting(spike_times, spike_amps, ground_truth.true_sp, 'threshold', amp_threshold, 'location_slack', ground_truth.spike_location_slack);
+     EvaluateSorting(spike_times, spike_amps, ground_truth.true_sp, 'threshold', amp_thresholds, 'location_slack', params.postproc.spike_location_slack);
   fprintf('       CBP: %s', SortingEvaluationStr(ground_truth.true_sp, prune_est_times, total_misses, total_false_positives));
 
 end
 
 %% ----------------------------------------------------------------------------------
 % Plot various snippet subpopulations
-[est_matches true_matches] = GreedyMatchTimes(spike_times, ground_truth.true_sp, ground_truth.spike_location_slack);
+[est_matches true_matches] = GreedyMatchTimes(spike_times, ground_truth.true_sp, params.postproc.spike_location_slack);
 
 % Complete misses (missed even at 0 threshold)
 completemisses = cell(size(ground_truth.true_sp));
@@ -392,7 +406,7 @@ ScrollSnippets(snippets, snippet_centers, ...
     'snipindices',  unique(snipindices(snipindices > 0)),  ...
     'cbp',          spike_times,        ...
     'cbpamp',       spike_amps,         ...
-... %     'cbpampthresh', amp_threshold,      ... % Could use amp_threshold if we used that to pick snippets...
+... %     'cbpampthresh', amp_thresholds,      ... % Could use amp_thresholds if we used that to pick snippets...
     'clust',        spike_times_cl,     ...
 ... %     'recons',       recon_snippets,     ...
     'true',         ground_truth.true_sp);
@@ -441,4 +455,4 @@ end
 % NB: Much faster if mex greedymatchtimes.c is compiled
 %*** show chosen threshold in top plot
 %*** also show log # spikes found?
-PlotCBPROC(spike_times, spike_amps, ground_truth.true_sp, ground_truth.spike_location_slack);
+PlotCBPROC(spike_times, spike_amps, ground_truth.true_sp, params.postproc.spike_location_slack);

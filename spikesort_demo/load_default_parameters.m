@@ -41,8 +41,8 @@ partition.min_pad_size       = 5;
 %cbp.num_features = [];  % number of "cells", empty => copy from params.clustering
 cbp.firing_rates = 1e-3;  %prior: probability of observering a spike in a time bin
 cbp.accuracy = 0.1; % error allowed when interpolating waveforms
-cbp.lambda = 1.5 % initial value of weighting on sparsity term (updated using reweight_fn)
-cbp.reweight_exp = 1.5 % exponent of power-law prior on spike amplitudes
+cbp.lambda = 1.5; % initial value of weighting on sparsity term (updated using reweight_fn)
+cbp.reweight_exp = 1.5; % exponent of power-law prior on spike amplitudes
 cbp.reweight_fn = @(x) cbp.reweight_exp ./ (eps + abs(x)); % Reweighting function for Iteration Reweighted L1 optimization: 
 							   % should be -d/dz(log(P(z))) where P(z)=(z+eps)^(-1.5)
 cbp.magnitude_threshold = 1e-2; % amplitude threshold for deleting spikes
@@ -75,6 +75,15 @@ cbp_outer.reestimate_priors = false;  % always FALSE
 cbp_outer.CoeffMtx_fn =  @polar_1D_sp_cnv_mtx;  % convolves spikes w/waveforms
 cbp_outer.plot_every = 1;   % plotting frequency    
 
+% Parameters for picking amplitude thresholds.
+amplitude.kdepoints = 32;
+amplitude.kderange = [0.3 1.1];
+amplitude.kdewidth = 5;
+
+% Acceptable slack for considering two spikes a match.  In units of samples.
+% Currently two-sided, but this should probably be changed.
+postproc.spike_location_slack = 30;
+
 params.general      = general;
 params.plotting     = plotting;
 params.filtering    = filtering;
@@ -83,3 +92,5 @@ params.clustering   = clustering;
 params.partition    = partition;
 params.cbp          = cbp;
 params.cbp_outer    = cbp_outer;
+params.amplitude    = amplitude;
+params.postproc     = postproc;

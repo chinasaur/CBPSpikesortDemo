@@ -1,4 +1,7 @@
-function threshold = ComputeKDEThreshold(data, num_points, range, peak_width)
+function threshold = ComputeKDEThreshold(data, params)
+num_points = params.kdepoints;
+range = params.kderange;
+peak_width = params.kdewidth;
 
 [bandwidth, density, xmesh, cdf] = ...
     KernelDensityEstimator(data, num_points, range(1), range(2));
