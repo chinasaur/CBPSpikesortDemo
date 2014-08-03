@@ -397,8 +397,8 @@ end
 % with given threshold can also be calculated
 % TODO PHLI: automate this.
 % desiredspiketimes = cell2mat(allfps);         % Pick one or the other...
-desiredspiketimes = cell2mat(completemisses); % Pick one or the other...
-% desiredspiketimes = cell2mat(spike_times);
+% desiredspiketimes = cell2mat(completemisses); % Pick one or the other...
+desiredspiketimes = cell2mat(spike_times);
 
 % Now find and plot the relevant snippets
 snipindices = FindSnippets(desiredspiketimes, snippet_centers, snippets); % snippets just given as shorthand for calculating widths

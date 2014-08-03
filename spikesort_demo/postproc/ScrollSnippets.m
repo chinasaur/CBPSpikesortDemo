@@ -8,6 +8,11 @@ opts.parse(varargin{:});
 unmatched = opts.Unmatched;
 opts = opts.Results;
 
+if isempty(opts.snipindices)
+    error('Selected snippet population empty.');
+    return
+end
+
 data.snips   = snippets(opts.snipindices);
 data.centers = snipcenters(opts.snipindices);
 data.spikes  = unmatched;
