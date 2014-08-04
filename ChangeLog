@@ -1,8 +1,19 @@
-
 ## NOTE: "->" indicates changes to computation or parameters that affect results
 -------------------------------------------------------------------------------------
+2014-07-30  Eero Simoncelli  <eero@ferrando.home>
+
+	* spikesort_demo/load_raw_data.m: 
+	-> Changed default waveform_len for Harris data set from 81 to 35.
 	
-2014-07-23  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
+	* spikesort_demo/preproc/OrderWaveformsByNorm.m
+	Modified order of waveforms: was originally sorted from smallest
+	to largest norm.  Now reversed (largest to smallest).
+
+ 	* spikesort_demo/preproc/PartitionSignal.m (PartitionSignal): 
+	Changed back to original thresholding rule:
+	params.partition.silence_threshold*std(rms) 
+	
+ 2014-07-23  Eero Simoncelli  <eero@olympia.cns.nyu.edu>
 
 	* spikesort_demo/load_default_parameters.m: 
 	set default filter.freq to [100 5000]

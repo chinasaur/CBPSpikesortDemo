@@ -55,7 +55,8 @@ if (nargin < 3)
 end
 
 % Plot the time-domain snippets
-figure(fig2); clf; hold on;
+figure(fig2); clf; set(gcf,'Name','Initial waveforms');
+hold on;
 nc = ceil(sqrt(N));
 chSpace = 13; % vertical spacing between channels
 wlen = size(X, 1) / nchan;
@@ -78,7 +79,7 @@ for i = 1 : N
     yrg(i) = max(Xsub(:))-min(Xsub(:));
     set(gca, 'FontSize', font_size);
     xlabel('time (samples)');
-    title(sprintf('cell %d: %d spikes', i, counts(i) ));
+    title(sprintf('cell %d, snr=%.1f', i, norm(centroids(:,i))/sqrt(size(centroids,1))));
     hold off
 end
 % make axis ticks same size on all subplots
@@ -90,3 +91,9 @@ for i = 1:N
   yrg = ylim(2)-ylim(1);
   set(gca,'Ylim', ymn + (ylim - ymn)*(mxYrg/yrg));
 end
+
+ip = centroids'*centroids;
+dist2 = repmat(diag(ip),1,size(ip,2)) - 2*ip + repmat(diag(ip)',size(ip,1),1) +...
+        diag(diag(ip));
+fprintf(1,'Distances between waveforms (diagonal is norm): \n');
+disp(sqrt(dist2/size(centroids,1)))

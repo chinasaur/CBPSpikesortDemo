@@ -8,24 +8,27 @@ INTERFACE/COSMETIC CHANGES:
 
 * close unneeded figs: close(figNums(ishghandle(figNums)));
 
+* Unify wording.  "snippet"/"chunk" -> "segment" ?
+
 * demo script should run with diagnostics turned off, checking waveform convergence
   and repeating...
 
-* Unify wording.  "snippet"/"chunk" -> "segment" ?
+* Why are there two functions, evaluate_sorting and EvaluateSorting ?  Yuk.
 
 * add to params.plotting: maxTracePlotLen, noiseCol, spikeCol
 
-* waveform_len should be expressed in msec (waveforms typically 2-6 msec)
-
-* CBP firing_rate prior should be expressed in Hz (not prob per spike bin!)
+* Units:
+  - waveform_len should be expressed in msec (waveforms typically 2-6 msec)
+  - CBP firing_rate prior should be expressed in Hz (not prob per spike bin!)
 
 * VisualizeClustering:
-  - show 2D subspace that best captures SPIKE WAVEFORMS, not all data.
+  - show 2D subspace that best captures SPIKE WAVEFORMS and their translates.
   - give time in msec, not samples
   - show spike rates, in addition to total count
   - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
   - for waveforms, give expected MISS+FP rate, given univariate Gaussian noise
   - also give probability of mistaking each waveform for the others
+  - show a background noise cluster?
 
 * After running clustering (or CBP), give options to:
   merge cells (average two waveforms, reducing num_waveforms)
@@ -40,18 +43,11 @@ INTERFACE/COSMETIC CHANGES:
  - make cross-corr time bins  the width of the main lobe of the waveforms (0.5msec?)
      ( for easy discernment of synchrony artifacts).
 
-* CBP: firing_rates parameter should be able to be set by default to a scalar (which
-  is then replicated appropriately).
-
-** Refine the GUI for inspecting results.  Specifically, user should be able to view
+* Refine the GUI for inspecting results.  Specifically, user should be able to view
   voltage traces and scroll/jump to "events", including found spikes, unusually low
   amplitude found spikes, unusually large amplitude background locations, refractory
   violations, cross-corr (synchrony) artifacts, or mis-matches between two sorters
   (or sorter and ground truth).
-
-* add scroll bars to data plots - need a general interface for skipping to next "event"
-
-* Why are there two functions, evaluate_sorting and EvaluateSorting ?  Yuk.
 
 * Display stats in ground truth comparison figures (preserved if we try
   again with different params, increasing the starting figure number) ?
@@ -72,8 +68,10 @@ SMALL ALGORITHMIC CHANGES:
 
 * Use asymmetric window around peak for spike waveform, perhaps 3:1
 
-* Clustering: number of PC's should be set using a better statistical criterion than
-  percent_variance: noise is supposed to be univariate and Gaussian!
+* Clustering: number of PC's should be set using a better statistical
+  criterion than percent_variance.  Specifically, we know what the
+  eigenvalues of a univariate Gaussian white noise ball should look like, so
+  should use only those that are significantly above that...
 
 * Improve consistency of thresholding tests for spikes/noise: 
   - Filtering: globally rescales data so that max(abs) is 1.  Should rescale each
@@ -105,10 +103,9 @@ MAJOR ALGORITHM MODIFICATIONS:
 
 * Speedup: Fourier-domain convolution
 
-* Handle noise distributions with other pnorms (stretched
-  exponentials).  This is described in the paper, and the original CVX
-  implementation did this, but we eliminated it when switching to
-  ECOS.
+* Handle noise distributions with other pnorms (stretched exponentials).  This is
+  described in the paper, and the original CVX implementation did this, but we
+  eliminated it when switching to ECOS.
 
 * Allow AMPLITUDE DRIFT:
   - allow slow temporal drift of waveform amplitudes

@@ -1,8 +1,8 @@
 function [d, params] = load_raw_data(identifier, params)
 
 % Load raw electrode data from a file, and adjust any parameters
-% that need to be specialized for that data set.
-
+% that need to be specialized for that data set.  
+%
 % Data are assumed to be in a matlab (.mat) file, containing:
 %   data: channel x time matrix of voltage traces
 %   dt : the temporal sampling interval (in seconds)
@@ -22,6 +22,7 @@ switch identifier
         fprintf(1,'Loading Quiroga dataset 1...\n');
         filename = '../example_data/C_Easy1_noise015.mat';
         d = load(filename, 'data', 'dt');
+
         d.polarity = 'max';
   
         params.filtering.freq = [];  % Low freq cutoff in Hz    
@@ -32,10 +33,12 @@ switch identifier
         fprintf(1,'Loading Harris dataset 1...\n');
         filename = '../example_data/harris_d533101.mat';
         d = load(filename, 'data', 'dt');
+
         d.polarity = 'min';
    
+        params.general.waveform_len = 31;
         params.filtering.freq = [400 1e4];  % Low/high cutoff in Hz
-  
+
     otherwise
         error('Unrecognized dataset identifier', identifier);
 end
@@ -55,22 +58,32 @@ if (d.dt > 1/5000)
   warning('Sampling rate is %.1f kHz, but recommended minimum is 5kHz', 1/(1000*d.dt)); 
 end
 
+% -----------------------------------------------------------------------------------
+% Display raw data, and Fourier  amplitude
 if (params.general.plot_diagnostics)
     plotDur = min(3000,d.nsamples);   %** magic number: should be a parameter
     plotT0 = round((d.nsamples-plotDur)/2);
     inds = plotT0+[1:plotDur];
     params.plotting.dataPlotInds = inds;
+    plotChannelOffset = 2*std(d.data(:))*ones(length(inds),1)*([1:d.nchan]-1);
 
+    existingFig = ishghandle(params.plotting.first_fig_num);
     figure(params.plotting.first_fig_num); clf; 
-    scrsz =  get(0,'ScreenSize');
-    set(gcf, 'Name', 'Data', 'OuterPosition', [1 1 scrsz(3)/2 scrsz(4)/3]);
-    subplot(3,1,1); 
+    set(gcf, 'Name', 'Data');
+    if (~existingFig) % only do this if we've created a new figure (avoid clobbering user changes)
+        scrsz =  get(0,'ScreenSize');
+        set(gcf, 'OuterPosition', [1 scrsz(4)/2 scrsz(3)/2 scrsz(4)/2],...
+                 'ToolBar', 'none');
+    end
+    subplot(2,1,1); 
     plot([inds(1), inds(end)]*d.dt, [0 0], 'k'); 
-    hold on; plot((inds-1)*d.dt, d.data(:,inds)'); hold off
+    hold on; 
+    plot((inds-1)*d.dt, d.data(:,inds)'+ plotChannelOffset); 
+    hold off
     axis tight; xlabel('time (sec)');  ylabel('voltage'); 
     title(sprintf('Partial raw data, nChannels=%d, dt=%.2fmsec', d.nchan, 1000*d.dt));
 
-    figure(params.plotting.first_fig_num+1); clf; subplot(3,1,1); 
+    figure(params.plotting.first_fig_num+1); clf; subplot(2,1,1); 
     noiseCol=[1 0.3 0.3];
     dftMag = abs(fft(d.data,[],2));
     if (d.nchan > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;

@@ -23,7 +23,7 @@ whitening.num_acf_lags    = 120;   % duration over which to estimate ACF
 whitening.reg_const       = 0;     % regularization const for making the ACF PSD
 
 clustering.num_waveforms    = 3;    % Number of cells
-clustering.spike_threshold  = 6;    % threshold for picking spike-containing intervals (in stdevs))
+clustering.spike_threshold  = 6;    % threshold for picking spike-containing intervals (in noise stdevs)
 clustering.window_len       = [];   % empty =>  use general.waveform_len
 clustering.peak_len         = [];   % empty =>  use 0.5*window_len
 clustering.percent_variance = 90;   % criteria for choosing # of PCs to retain
@@ -31,7 +31,8 @@ clustering.upsample_fac     = 5;    % upsampling factor
 clustering.smooth_len       = 5;    % smoothing factor (in upsampled space)
 clustering.downsample_after_align = true; % downsample after aligning
 
-partition.silence_threshold  = 4;  % threshold for silent 'break' regions (in stdevs)
+partition.silence_threshold  = 4;  % threshold for silent 'break'
+                                   % regions (in stdevs of mag)
 partition.min_silence_len    = floor(general.waveform_len/2);
 partition.min_snippet_len    = general.waveform_len;
 partition.max_snippet_len    = 1001;   % not enforced, only warnings
@@ -41,8 +42,8 @@ partition.min_pad_size       = 5;
 %cbp.num_features = [];  % number of "cells", empty => copy from params.clustering
 cbp.firing_rates = 1e-3;  %prior: probability of observering a spike in a time bin
 cbp.accuracy = 0.1; % error allowed when interpolating waveforms
-cbp.lambda = 1.5 % initial value of weighting on sparsity term (updated using reweight_fn)
-cbp.reweight_exp = 1.5 % exponent of power-law prior on spike amplitudes
+cbp.lambda = 1.5; % initial value of weighting on sparsity term (updated using reweight_fn)
+cbp.reweight_exp = 1.5; % exponent of power-law prior on spike amplitudes
 cbp.reweight_fn = @(x) cbp.reweight_exp ./ (eps + abs(x)); % Reweighting function for Iteration Reweighted L1 optimization: 
 							   % should be -d/dz(log(P(z))) where P(z)=(z+eps)^(-1.5)
 cbp.magnitude_threshold = 1e-2; % amplitude threshold for deleting spikes

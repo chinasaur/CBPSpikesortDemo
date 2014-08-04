@@ -1,6 +1,5 @@
-function [snippets, breaks, snippet_lens, snippet_centers, IDX] = ...
-    PartitionSignal(signal, pars)
-%function [snippets, breaks] = PartitionSignal(signal, pars)
+function [snippets, breaks, snippet_lens, snippet_centers, IDX] = PartitionSignal(signal, pars)
+%function [snippets, breaks, snippet_lens, snippet_centers, IDX] = PartitionSignal(signal, pars)
 %
 % Splits a signal into multiple "snippets" containing significant activity.
 % Also returns "dead zones" from between the snippets.
@@ -51,7 +50,7 @@ signal_rms = smooth(sqrt(sum(signal .^ 2, 1)), pars.smooth_len);
 %chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);  
 %chiVR = dof - chiMean^2;
 %rms_above_thresh = signal_rms > (chiMean + pars.silence_threshold*sqrt(chiVR));
-rms_above_thresh = signal_rms > pars.silence_threshold;
+rms_above_thresh = signal_rms > pars.silence_threshold*std(signal_rms);
 dead_zone_idx = FindConsecutiveZeroes(rms_above_thresh, pars.min_silence_len);
                                                                    
 % Find the "islands of 1's" in dead_zone_idx
@@ -108,7 +107,7 @@ breaks_idx = breaks_idx.PixelIdxList;
 breaks = cellfun(@(i) signal(:,i)', breaks_idx, 'UniformOutput', false);
 
 
-fprintf('Partitioned signal into %d snippets\n', length(snippets));
+fprintf('Partitioned signal into %d chunks\n', length(snippets));
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

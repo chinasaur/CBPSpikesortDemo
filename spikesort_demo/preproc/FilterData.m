@@ -39,7 +39,7 @@ datastruct.processing{end+1} = log;
 if (params.general.plot_diagnostics)
     % copied from WhitenNoise:
     dataMag = sqrt(sum(data .^ 2, 1));
-    nchan = datastruct.nchan;
+    nchan = size(data,1);
     thresh = params.whitening.noise_threshold;
     minZoneLen = params.whitening.min_zone_len;
     if isempty(minZoneLen), minZoneLen = params.general.waveform_len/2; end
@@ -47,23 +47,26 @@ if (params.general.plot_diagnostics)
     noiseZoneInds = cell2mat(cellfun(@(c) c', noiseZones, 'UniformOutput', false));
     zonesL = cellfun(@(c) c(1), noiseZones);  zonesR = cellfun(@(c) c(end), noiseZones);
                                                       
-    figure(params.plotting.first_fig_num); subplot(3,1,2);
+    figure(params.plotting.first_fig_num); subplot(2,1,2);
     noiseCol = [1 0.4 0.4];
     inds = params.plotting.dataPlotInds;
+    plotChannelOffset = 2*(mean(data(:).^6)).^(1/6)*ones(length(inds),1)*([1:nchan]-1);
+    plotChannelOffset = plotChannelOffset - mean(plotChannelOffset(1,:));
+    mxOffset = plotChannelOffset(1,end);
     visibleInds = find(((inds(1) < zonesL) & (zonesL < inds(end))) |...
                        ((inds(1) < zonesR) & (zonesR < inds(end))));
     nh=patch(datastruct.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
-             thresh*[-1;1;1;-1]*ones(1,length(visibleInds)), noiseCol,...
+             (mxOffset+thresh)*[-1;1;1;-1]*ones(1,length(visibleInds)), noiseCol,...
              'EdgeColor', noiseCol);
     hold on; 
     plot([inds(1), inds(end)]*datastruct.dt, [0 0], 'k'); 
-    dh = plot((inds-1)*datastruct.dt, datastruct.data(:,inds)');
+    dh = plot((inds-1)*datastruct.dt, datastruct.data(:,inds)' + plotChannelOffset);
     hold off; 
     set(gca, 'Xlim', ([inds(1),inds(end)]-1)*datastruct.dt);
-    set(gca,'Ylim',[-1 1]);  legend('noise regions (to be whitened)');
-    title('Filtered data');
+    %  set(gca,'Ylim',[-1 1]); 
+    legend('noise regions (to be whitened)');  title('Filtered data');
 
-    figure(params.plotting.first_fig_num+1); subplot(3,1,2);
+    figure(params.plotting.first_fig_num+1); subplot(2,1,2);
     maxDFTind = floor(datastruct.nsamples/2);
     dftMag = abs(fft(datastruct.data,[],2));
     if (nchan > 1.5), dftMag = sqrt(sum(dftMag.^2)); end;
@@ -78,7 +81,9 @@ if (params.general.plot_diagnostics)
 
     subplot(2,1,1);
     mx = max(abs(datastruct.data(:)));
-    X=linspace(-mx,mx,100);
+    nbins = min(100, 2*size(datastruct.data,2)^(1/3)); % Rice rule for histogram binsizes
+    % nbins = size(datastruct.data,2)^(1/3) / (2*iqr(datastruct.data(:))); % Freedman–Diaconis rule for histogram binsize
+    X=linspace(-mx,mx,nbins);
     N=hist(datastruct.data',X);
     plot(X,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
     hold on;
@@ -93,16 +98,17 @@ if (params.general.plot_diagnostics)
     legend(gh, 'Gaussian, fit to noise regions');
     subplot(2,1,2);
 
-    [N,X] = hist(dataMag, 100); 
+    [N,X] = hist(dataMag, nbins); 
     [Nnoise] = hist(dataMag(noiseZoneInds), X);
     chi = 2*(X/sd).*chi2pdf((X/sd).^2, nchan);
-    bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
+    h=bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
     hold on; 
-    dh= bar(X,Nnoise); set(dh, 'FaceColor', noiseCol);
+    dh= bar(X,Nnoise); set(dh, 'FaceColor', noiseCol, 'BarWidth', 1);
+    get(dh)
     ch= plot(X, (max(N)/max(chi))*chi, 'g'); 
     hold off; set(gca, 'Ylim', yrg);
     xlabel('rms magnitude (over all channels)'); 
-    legend([dh, ch], 'noise regions', 'chi-distribution, fit to noise regions');
+    legend([h,dh, ch], 'all data', 'noise regions', 'chi-distribution, fit to noise regions');
     title('Histogram, cross-channel magnitude of filtered data');
 end
 

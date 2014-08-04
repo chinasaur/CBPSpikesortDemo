@@ -15,5 +15,5 @@ for i = 1:nwf
     norms(i) = norm(wf(:,i));
 end
 
-[dummy, perm] = sort(norms);
+[dummy, perm] = sort(norms,'descend');
 wf = wf(:,perm);
