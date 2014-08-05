@@ -1,12 +1,8 @@
-function [f thresh] = AmplitudeThresholdGUI(spikeamps, spiketimes, varargin)
+function f = AmplitudeThresholdGUI(spikeamps, spiketimes, initthresh, varargin)
 opts = inputParser();
 opts.addParamValue('f', []);
-opts.addParamValue('thresh', []);
 opts.addParamValue('ampbins', 1e2);
 %opts.addParamValue('fontsize', 16);
-opts.addParamValue('kdepoints', 32);
-opts.addParamValue('kderange', [0.3 1.1]);
-opts.addParamValue('kdewidth', 5);
 opts.addParamValue('dt', 1);
 opts.addParamValue('true_sp', {});
 opts.addParamValue('location_slack', 30); % Allowed mismatch in timing for comparison to ground truth
@@ -24,18 +20,14 @@ end
 n = length(spikeamps);
 setappdata(f, 'spikeamps', spikeamps);
 
-% Calculate KDE thresholds if none given
-thresh = opts.thresh;
-if isempty(thresh)
-    for i = 1:n
-        thresh(i) = ComputeKDEThreshold(spikeamps{i}, opts.kdepoints, opts.kderange, opts.kdewidth);
-    end
-end
-
 % Store initial thresh value
-guiout = getappdata(0, 'GUIOutput');
-guiout{f}.thresh = thresh;
-setappdata(0, 'GUIOutput', guiout);
+if length(initthresh) < length(spikeamps)
+    error('Not enough initial thresholds provided.');
+end
+setappdata(f, 'amp_thresholds', initthresh);
+
+% Add menu item to export thresholds
+gui_data_export(f, 'amp_thresholds', 'CBP');
 
 % Modify spiketimes by dt
 spiketimes = cellfun(@(st) st.*opts.dt, spiketimes,   'UniformOutput', false);
@@ -48,7 +40,7 @@ setappdata(f, 'location_slack', slack);
 % Store initial thresholding
 threshspiketimes = cell(size(spiketimes));
 for i = 1:n
-    threshspiketimes{i} = spiketimes{i}(spikeamps{i} > thresh(i));
+    threshspiketimes{i} = spiketimes{i}(spikeamps{i} > initthresh(i));
 end
 setappdata(f, 'threshspiketimes', threshspiketimes);
 
@@ -70,7 +62,7 @@ for i = 1:n
     if haveipt
         xl = get(gca, 'XLim');
         cnstrfcn = makeConstrainToRectFcn('imline', xl, yl);
-        lh = imline(gca, thresh(i)*[1 1], yl, 'PositionConstraintFcn', cnstrfcn);
+        lh = imline(gca, initthresh(i)*[1 1], yl, 'PositionConstraintFcn', cnstrfcn);
         lh.setColor('r');
         lch = get(lh, 'Children');
         set(lch(1:2), 'HitTest', 'off');
@@ -96,12 +88,8 @@ end
 % Report on performance relative to ground truth if available
 showGroundTruthEval(threshspiketimes, f);
 
+
 if nargout < 1, clear f; end
-if nargout > 1
-    waitfor(f);
-    guiout = getappdata(0, 'GUIOutput');
-    thresh = guiout{f}.thresh;
-end
 
 
 function showGroundTruthEval(spiketimes, f)
@@ -123,7 +111,6 @@ end
 
 
 function updateThresh(newthresh, i, f)
-guiout = getappdata(0, 'GUIOutput');
 threshsts = getappdata(f, 'threshspiketimes');
 sts       = getappdata(f, 'spiketimes');
 amps      = getappdata(f, 'spikeamps');
@@ -143,8 +130,9 @@ showGroundTruthEval(threshsts, f);
 
 % Save new threshes and threshed spiketimes
 setappdata(f, 'threshspiketimes', threshsts);
-guiout{f}.thresh(i) = newthresh;
-setappdata(0, 'GUIOutput', guiout);
+amp_thresholds = getappdata(f, 'amp_thresholds');
+amp_thresholds(i) = newthresh;
+setappdata(f, 'amp_thresholds', amp_thresholds);
 
 
 function plotACorr(spiketimes, i)
@@ -152,6 +140,8 @@ n = length(spiketimes);
 subplot(n+1, n, sub2ind([n n+1], i, n+1));
 cla;
 psthacorr(spiketimes{i})
+title(sprintf('Autocorr, cell %d', i));
+
 
 function plotXCorr(spiketimes, i, j)
 if j < i
@@ -164,3 +154,4 @@ n = length(spiketimes);
 subplot(n+1, n, sub2ind([n n+1], j, i+1));
 cla;
 psthxcorr(spiketimes{i}, spiketimes{j})
+title(sprintf('Xcorr, cells %d, %d', i, j));

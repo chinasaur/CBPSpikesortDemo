@@ -76,6 +76,15 @@ cbp_outer.reestimate_priors = false;  % always FALSE
 cbp_outer.CoeffMtx_fn =  @polar_1D_sp_cnv_mtx;  % convolves spikes w/waveforms
 cbp_outer.plot_every = 1;   % plotting frequency    
 
+% Parameters for picking amplitude thresholds.
+amplitude.kdepoints = 32;
+amplitude.kderange = [0.3 1.1];
+amplitude.kdewidth = 5;
+
+% Acceptable slack for considering two spikes a match.  In units of samples.
+% Currently two-sided, but this should probably be changed.
+postproc.spike_location_slack = 30;
+
 params.general      = general;
 params.plotting     = plotting;
 params.filtering    = filtering;
@@ -84,3 +93,5 @@ params.clustering   = clustering;
 params.partition    = partition;
 params.cbp          = cbp;
 params.cbp_outer    = cbp_outer;
+params.amplitude    = amplitude;
+params.postproc     = postproc;
