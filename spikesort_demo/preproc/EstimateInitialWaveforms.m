@@ -92,8 +92,8 @@ Xproj = Xproj(:, sorted_idx);
 % the desired percent of total variance
 cutoff = find(cumsum(latent) ./ sum(latent) * 100 > percent_variance, 1);
 npcs = max(2, cutoff);
-fprintf('%d PCs account for %.2f percent variance\n', ...
-    npcs, percent_variance);
+fprintf('%d/%d PCs account for %.2f percent variance\n', ...
+        npcs, length(latent), percent_variance);
 % Project onto leading npcs PCs
 PC = PCs(:, 1 : npcs);
 % Project on to PCs

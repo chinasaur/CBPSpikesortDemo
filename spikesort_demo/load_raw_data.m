@@ -36,7 +36,7 @@ switch identifier
 
         d.polarity = 'min';
    
-        params.general.waveform_len = 31;
+        params.general.waveform_len = 41;
         params.filtering.freq = [400 1e4];  % Low/high cutoff in Hz
 
     otherwise
@@ -72,7 +72,7 @@ if (params.general.plot_diagnostics)
     set(gcf, 'Name', 'Data');
     if (~existingFig) % only do this if we've created a new figure (avoid clobbering user changes)
         scrsz =  get(0,'ScreenSize');
-        set(gcf, 'OuterPosition', [1 scrsz(4)/2 scrsz(3)/2 scrsz(4)/2],...
+        set(gcf, 'OuterPosition', [1 scrsz(4)/2 scrsz(3) scrsz(4)/2],...
                  'ToolBar', 'none');
     end
     subplot(2,1,1); 
@@ -81,9 +81,14 @@ if (params.general.plot_diagnostics)
     plot((inds-1)*d.dt, d.data(:,inds)'+ plotChannelOffset); 
     hold off
     axis tight; xlabel('time (sec)');  ylabel('voltage'); 
-    title(sprintf('Partial raw data, nChannels=%d, dt=%.2fmsec', d.nchan, 1000*d.dt));
+    title(sprintf('Raw data, nChannels=%d, %.1fkHz', d.nchan, 1/(1000*d.dt)));
 
-    figure(params.plotting.first_fig_num+1); clf; subplot(2,1,1); 
+    existingFig = ishghandle(params.plotting.first_fig_num+1);
+    figure(params.plotting.first_fig_num+1); clf; 
+    if (~existingFig) % only do this if we've created a new figure (avoid clobbering user changes)
+        set(gcf, 'ToolBar', 'none');
+    end
+    subplot(2,1,1); 
     noiseCol=[1 0.3 0.3];
     dftMag = abs(fft(d.data,[],2));
     if (d.nchan > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;

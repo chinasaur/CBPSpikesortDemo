@@ -1,6 +1,21 @@
 ## NOTE: "->" indicates changes to computation or parameters that affect results
 -------------------------------------------------------------------------------------
-2014-07-30  Eero Simoncelli  <eero@ferrando.home>
+2014-08-07  Eero Simoncelli  <eero@ferrando.home>	
+	-> changed params.amplitude.kderange from [0.3 1.1] to [0.3 1.0]
+	(should be less than 1.0)
+
+	* AmplitudeThresholdGUI: added buttons, colors (to identify
+	cells), spike counts, inf => eliminate cell
+	
+2014-08-05  Eero Simoncelli  <eero@ferrando.home>
+
+	* Offset channels in all displays 
+	
+	* spikesort_demo/cbp_spikesort_demo_script.m: 
+	- Fixed bug:  CBP step 2, recalculation of waveforms, was operating
+	on all spikes, not thresholded spikes.
+	
+ 2014-07-30  Eero Simoncelli  <eero@ferrando.home>
 
 	* spikesort_demo/load_raw_data.m: 
 	-> Changed default waveform_len for Harris data set from 81 to 35.

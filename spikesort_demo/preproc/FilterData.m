@@ -47,7 +47,7 @@ if (params.general.plot_diagnostics)
     noiseZoneInds = cell2mat(cellfun(@(c) c', noiseZones, 'UniformOutput', false));
     zonesL = cellfun(@(c) c(1), noiseZones);  zonesR = cellfun(@(c) c(end), noiseZones);
                                                       
-    figure(params.plotting.first_fig_num); subplot(2,1,2);
+    figure(params.plotting.first_fig_num); subplot(2,1,2); cla
     noiseCol = [1 0.4 0.4];
     inds = params.plotting.dataPlotInds;
     plotChannelOffset = 2*(mean(data(:).^6)).^(1/6)*ones(length(inds),1)*([1:nchan]-1);
@@ -66,7 +66,7 @@ if (params.general.plot_diagnostics)
     %  set(gca,'Ylim',[-1 1]); 
     legend('noise regions (to be whitened)');  title('Filtered data');
 
-    figure(params.plotting.first_fig_num+1); subplot(2,1,2);
+    figure(params.plotting.first_fig_num+1); subplot(2,1,2); cla
     maxDFTind = floor(datastruct.nsamples/2);
     dftMag = abs(fft(datastruct.data,[],2));
     if (nchan > 1.5), dftMag = sqrt(sum(dftMag.^2)); end;
@@ -75,11 +75,15 @@ if (params.general.plot_diagnostics)
     xlabel('frequency (Hz)'); ylabel('amplitude');
     title('Fourier amplitude, filtered data');
   
+    existingFig = ishghandle(params.plotting.first_fig_num+2);
     figure(params.plotting.first_fig_num+2); clf
+    set(gcf, 'Name', 'Data histograms');
+    if (~existingFig) % only do this if we've created a new figure (avoid clobbering user changes)
+        set(gcf, 'ToolBar', 'none');
+    end
+    subplot(2,1,1);    
     sd = sqrt(sum(cellfun(@(c) sum(dataMag(c).^2), noiseZones)) / ...
               (nchan*sum(cellfun(@(c) length(c), noiseZones))));
-
-    subplot(2,1,1);
     mx = max(abs(datastruct.data(:)));
     nbins = min(100, 2*size(datastruct.data,2)^(1/3)); % Rice rule for histogram binsizes
     % nbins = size(datastruct.data,2)^(1/3) / (2*iqr(datastruct.data(:))); % Freedman–Diaconis rule for histogram binsize
@@ -95,7 +99,7 @@ if (params.general.plot_diagnostics)
     else
       title(sprintf('Histograms, filtered data (%d channels)', nchan));
     end
-    legend(gh, 'Gaussian, fit to noise regions');
+    legend('Data', 'Gaussian, fit to noise regions');
     subplot(2,1,2);
 
     [N,X] = hist(dataMag, nbins); 
@@ -104,7 +108,6 @@ if (params.general.plot_diagnostics)
     h=bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
     hold on; 
     dh= bar(X,Nnoise); set(dh, 'FaceColor', noiseCol, 'BarWidth', 1);
-    get(dh)
     ch= plot(X, (max(N)/max(chi))*chi, 'g'); 
     hold off; set(gca, 'Ylim', yrg);
     xlabel('rms magnitude (over all channels)'); 

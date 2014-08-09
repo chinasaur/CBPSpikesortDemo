@@ -162,7 +162,7 @@ if (gen_pars.plot_diagnostics)
     end
     peakInds = inds(peakInds);
 
-    figure(params.plotting.first_fig_num); subplot(3,1,3); cla
+    figure(params.plotting.first_fig_num); subplot(2,1,2); cla
     sigCol = [0.4 1 0.5];
     hold on;
     sh = patch(whitedatastruct.dt*[[1;1]*(peakInds-peakLen); [1;1]*(peakInds+peakLen)], ...
@@ -173,7 +173,7 @@ if (gen_pars.plot_diagnostics)
     title('Filtered & noise-whitened data')
     legend('putative spike segments (for initial waveform estimation)');
     
-    figure(params.plotting.first_fig_num+1); subplot(3,1,3);
+    figure(params.plotting.first_fig_num+1); subplot(2,1,2); cla
     maxDFTind = floor(whitedatastruct.nsamples/2);
     dftMag = abs(fft(whitedatastruct.data,[],2));
     if (nchan > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;

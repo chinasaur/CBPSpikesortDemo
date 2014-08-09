@@ -25,6 +25,7 @@ function [spike_times, spike_amps, recon_snippets] = ...
 % spike_amps : cell array of spike magnitudes
 % recon_snippets : cell array of reconstructed snippets
 
+starttime = tic;
 
 % Precompute dictionary, radii, thetas
 cbp_pars.spacings = ...
@@ -49,13 +50,15 @@ if (numel(cbp_pars.reweight_fn)==1)
 end
 
 fprintf('Inferring spikes for whole data set...\n');
-fprintf('Spacing=%s Lambda%s\n', ...
+fprintf('CBP parameters: Spacing=%s Lambda=%s\n', ...
     mat2str(cbp_pars.spacings, 3), mat2str(cbp_pars.lambda, 3));
 [spike_times_cell, spike_amps_cell, recon_snippets] = ...
     cbp_core_wrapper(snippets, waveforms, cbp_pars);
 clear all_info; % save memory
-fprintf('Done.\n');
 
 % Convert cell arrays into vectors
 [spike_times, spike_amps] = ConvertSpikeTimesFromCell(spike_times_cell, ... 
     spike_amps_cell, snippet_centers);
+
+toc(starttime);
+

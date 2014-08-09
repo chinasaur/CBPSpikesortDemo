@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Demonstration script for CBP spike sorting.  
+%%% Demonstration script for spike sorting using Continuous Basis Pursuit (CBP).  
 %%% Please see the file README.md for a description of this code.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -126,15 +126,15 @@ end
 spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 
 % Diagnostics for waveform initialization: 
-
 % Fig 5 shows the data segments projected onto the first two principal components,
-% and the identified clusters (black circles).  Fig 6 shows the waveforms associated
-% with each cluster.  The visualization function also prints out the distances
-% between waveforms, and each of their distances to the origin (i.e., their norm).
-% These numbers provide some indication of how likely it is that waveforms could be
-% confused with each other, or with background noise.
+% and the identified clusters.  Fig 6 shows the waveforms associated with each
+% cluster.  The visualization function also prints out a table of distances between
+% waveforms, and each of their distances to the origin (i.e., their norm).  All
+% distances are relative to the noise amplitude.  These numbers provide some
+% indication of how likely it is that waveforms could be confused with each other, or
+% with background noise.
 
-% At this point, waveforms of all potential cells should be identified (again:
+% At this point, waveforms of all potential cells should be identified (NOTE:
 % spike identification errors are irrelevant - only the WAVEFORMS matter).  If
 % not, may need to adjust params.clustering.num_waveforms and re-run the clustering
 % to identify more/fewer cells.  May also wish to adjust the
@@ -144,9 +144,9 @@ spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 % since the waveform_len affects the identification of noise regions.
 
 %% -----------------------------------------------------------------------------------
-%% CBP preprocessing
+% CBP preprocessing
 
-close(params.plotting.first_fig_num+3); % close clustering figure
+closeIfOpen(params.plotting.first_fig_num+[1,3]); % close Fourier and clustering figures
 
 % To speed up computation, partition data into "snippets", which will be processed
 % independently. Snippets have duration between min/max_snippet_len and are separated
@@ -161,99 +161,80 @@ close(params.plotting.first_fig_num+3); % close clustering figure
 %% ----------------------------------------------------------------------------------
 % CBP step 1: use CBP to estimate spike times
 
-% params.cbp.progress = false; % Turn off Java progress bar if it causes errors
-%** fix "Processing chunk..." message
-starttime = tic;
+% Turn off the Java progress bar if it causes errors
+% params.cbp.progress = false; 
+
 [spike_times, spike_amps, recon_snippets] = ...
     SpikesortCBP(snippets, snippet_centers, init_waveforms, params.cbp_outer, params.cbp);
-toc(starttime);
 
 if (params.general.plot_diagnostics)
-    DisplaySortedSpikes(data_pp, spike_times, init_waveforms, ...
+    DisplaySortedSpikes(data_pp, spike_times, spike_amps, init_waveforms, ...
                         snippets, recon_snippets, params, 'CBP results');
 end
 
 % Diagnostics for CBP results:
-% Fig1: whitened data, recovered spikes, and residual (data minus spikes).
+% Fig1: visually compare whitened data, recovered spikes
 % Fig2: residual histograms (raw, and cross-channel magnitudes) - compare to Fig3
 
 %% ----------------------------------------------------------------------------------
-% Threshold amplitudes to make final spike-or-no-spike decisions:
-%
-% KDE thresholds provide automatic initial estimates of amp_thresholds, 
-% attempting to split off low amplitude errors.
-%
-% Fig 7 displays the current amp_thresholds and the corresponding spike
-% autocorrelation and crosscorrelation functions after discarding detected
-% spikes with amplitudes below threshold.  Current thresholds are indicated
-% by red lines.
-%
-% If the image processing toolbox is installed, thresholds can be
-% manipulated interactively by dragging the red lines left and right.
-% Autocorrelation and crosscorrelation plots will update using the new
-% accepted spike populations.  To save the updated amp_thresholds out to
-% the workspace, use the 'CBP->Export amp_thresholds to workspace'
-% pull-down menu item.
+% CBP step 2: Identify spikes by thresholding amplitudes of each cell
 
-% Calculate initial KDE thresholds.
-if ~exist('amp_thresholds', 'var')
-    amp_thresholds = cellfun(...
-        @(sa) ComputeKDEThreshold(sa, params.amplitude), ...
-        spike_amps);
+% Calculate default thresholds.  This is done by fitting the amplitude
+% distribution (using a Gaussian kernel density estimator) and then choosing the
+% largest local minimum.
+amp_thresholds = cellfun(@(sa) ComputeKDEThreshold(sa, params.amplitude), spike_amps);
+
+% Visualize thresholds (only works if image processing toolbox is installed).
+if (params.general.plot_diagnostics)
+    AmplitudeThresholdGUI(spike_amps, spike_times, amp_thresholds,    ...
+                          'dt', data_pp.dt, ...
+                          'f', figure(params.plotting.first_fig_num+6),    ...
+                          'wfnorms', cellfun(@(wf) norm(wf), init_waveforms), ...
+                          'location_slack', params.postproc.spike_location_slack);
 end
 
-% Interactively adjust thresholds.
-atgf = AmplitudeThresholdGUI(spike_amps, spike_times, amp_thresholds,    ...
-                             'dt', data_pp.dt, ...
-                             'f', params.plotting.first_fig_num + 6,    ...
-                             'location_slack', params.postproc.spike_location_slack);
-
-% ORIGINAL:
-% [atgf amp_threshold] = AmplitudeThresholdGUI(spike_amps, spike_times, 'dt', data_pp.dt, ...
-%                                             'f', params.plotting.first_fig_num+6);
-
-% Fig7 allows interactive adjustment of waveform amplitudes, while interactively
-% visualizing effect on ACorr/XCorr.  Top row shows amplitude distribution (typical
-% spikes should have amplitude 1), with thresholds indicated by red lines.  Bottom
-% row shows spike train autocorrelation that would result from chosen threshold, and
-% can be examined for refractory violations.  Middle rows show spike train
-% cross-correlations across pairs of cells, and can be examined for dropped
-% synchronous spikes (very common with clustering methods).  Adjust the thresholds by
-% dragging red lines for each cell independently. Quit by closing the figure window.
+% Fig7 allows interactive adjustment of waveform amplitudes, while visualizing effect
+% on ACorr/XCorr.  Top row shows amplitude distribution (typical spikes should have
+% amplitude 1), with thresholds indicated by red lines.  These can be dragged right
+% or left.  Bottom row shows spike train autocorrelation that would result from
+% chosen threshold, and can be examined for refractory violations.  Middle rows show
+% spike train cross-correlations across pairs of cells, and can be examined for
+% dropped synchronous spikes (very common with clustering methods).  Click the
+% "Use waveforms" button to proceed with adjusted values.  Click the "Revert"
+% button to revert to the automatically-chosen default values.
 
 %% ----------------------------------------------------------------------------------
-% CBP Step 2: re-estimate waveforms
+% CBP Step 3: Re-estimate waveforms
 
 % Compute waveforms using regression, with interpolation (defaults to cubic spline)
 nlrpoints = (params.general.waveform_len-1)/2;
 waveforms = cell(size(spike_times));
 for i = 1:numel(spike_times)
-    % Have to shift spiketimes by 1 because existing code treats data as 1 indexed.
-    sts = spike_times{i}(spike_times{i} > amp_thresholds(i)) - 1;
+    sts = spike_times{i}(spike_amps{i} > amp_thresholds(i)) - 1;
     waveforms{i} = CalcSTA(data_pp.data', sts, [-nlrpoints nlrpoints]);
 end
-
-%*** Merge waveforms with L2-norm distance less than a threshold
 
 % Compare updated waveforms to initial estimates
 %*** Hide this stuff somewhere else!
 if (params.general.plot_diagnostics)
   num_waveforms = length(waveforms);
+  cols= hsv(num_waveforms);
   nchan=size(data_pp.data,1);
     figure(params.plotting.first_fig_num+4);
     nc = ceil(sqrt(num_waveforms));
     nr = ceil(num_waveforms / nc);
     chSpace = 13; %**magic number, also in VisualizeClustering
     spacer = ones(size(waveforms{1},1), 1) * ([1:nchan]-1)*chSpace;
-    for i = 1:numel(waveforms)
+    for i = 1:num_waveforms
         subplot(nr, nc, i);
-        inith = plot(reshape(init_waveforms{i},[],nchan)+spacer, 'b');
+        inith = plot(reshape(init_waveforms{i},[],nchan)+spacer, 'k');
         hold on
-        finalh = plot(reshape(waveforms{i},[],nchan)+spacer, 'r');
+        finalh = plot(reshape(waveforms{i},[],nchan)+spacer, 'Color', cols(i,:));
         hold off
+        set(gca,'Xlim',[1, size(spacer,1)]);
         err = norm(init_waveforms{i} - waveforms{i})/...
               norm(waveforms{i});
-        title(sprintf('Waveform %d, change=%.0f%%', i, 100*err))
+        title(sprintf('cell %d, change=%.0f%%', i, 100*err))
         legend([inith(1) finalh(1)], {'Initial', 'New'});
     end
 end
@@ -265,10 +246,41 @@ end
 
 
 %% ----------------------------------------------------------------------------------
-% Post-analysis: Comparison to clustering results, and to ground truth (if
+% Post-analysis: Comparison of CBP to clustering results, and to ground truth (if
 % available)
 
 %** indicate which cells match ground truth.
+
+ground_truth = load(data_pp.filename, 'true_spike_times', 'true_spike_class', 'dt');
+ground_truth.filename = data_pp.filename;
+
+if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spike_class')
+    % Reformat as 1-cellarr per cell of spike times.
+    ground_truth.true_sp = GetSpikeTimesFromAssignments(ground_truth.true_spike_times, ground_truth.true_spike_class);
+    
+    % Reorder to match cell numbering from clustering.
+    [ground_truth.true_sp, ...
+     ground_truth.true_spike_times, ... 
+     ground_truth.true_spike_class] = ReorderCells( ...
+        ground_truth.true_sp, spike_times_cl, params.postproc.spike_location_slack);
+end
+
+if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spike_class')
+  % Since we already permuted ground truth to match clustering, this is true by definition
+  best_ordering_cl = 1:length(spike_times_cl);
+  best_ordering = 1:length(spike_times);
+
+  % Evaluate clustering sorting
+  [total_misses_cl, total_false_positives_cl, misses_cl, false_positives_cl] = ...
+      evaluate_sorting(spike_times_cl, ground_truth.true_sp, params.postproc.spike_location_slack);
+  fprintf('Clustering: %s', SortingEvaluationStr(ground_truth.true_sp, spike_times_cl, total_misses_cl, total_false_positives_cl));
+
+  % Evaluate CBP sorting
+  [total_misses, total_false_positives, prune_est_times, misses, false_positives] = ...
+     EvaluateSorting(spike_times, spike_amps, ground_truth.true_sp, 'threshold', amp_thresholds, 'location_slack', params.postproc.spike_location_slack);
+  fprintf('       CBP: %s', SortingEvaluationStr(ground_truth.true_sp, prune_est_times, total_misses, total_false_positives));
+
+end
 
 ground_truth = load(data_pp.filename, 'true_spike_times', 'true_spike_class', 'dt');
 ground_truth.filename = data_pp.filename;

@@ -1,47 +1,34 @@
 %% -----------------------------------------------------------------
 INTERFACE/COSMETIC CHANGES:
 
-* cosmetic: unify underscores and capitalization in naming, at least
-  for top-level (user-called) functions and variables!
+* unify underscores and capitalization in naming, at least for top-level
+  (user-called) functions and variables!
 
-* add figure size and position parameters to params.plotting
+* Get rid of old/unused functions and parameters.  EG: evaluate_sorting and EvaluateSorting (yuk!)
 
-* close unneeded figs: close(figNums(ishghandle(figNums)));
+* add to params.plotting: DataFigureSIze, maxTracePlotLen, noiseCol, spikeCol
 
-* Unify wording.  "snippet"/"chunk" -> "segment" ?
+* Unify wording:  "snippet"/"chunk" -> "segment" ?
 
 * demo script should run with diagnostics turned off, checking waveform convergence
   and repeating...
 
-* Why are there two functions, evaluate_sorting and EvaluateSorting ?  Yuk.
-
-* add to params.plotting: maxTracePlotLen, noiseCol, spikeCol
-
 * Units:
   - waveform_len should be expressed in msec (waveforms typically 2-6 msec)
-  - CBP firing_rate prior should be expressed in Hz (not prob per spike bin!)
+  - CBP firing_rate prior should be expressed in Hz (not prob per spike bin)
 
 * VisualizeClustering:
   - show 2D subspace that best captures SPIKE WAVEFORMS and their translates.
+  - show a background noise cluster?
   - give time in msec, not samples
   - show spike rates, in addition to total count
-  - show multiple PC views (1 vs 2, 2 vs 3, 1 vs 3) ?
   - for waveforms, give expected MISS+FP rate, given univariate Gaussian noise
   - also give probability of mistaking each waveform for the others
-  - show a background noise cluster?
-
-* After running clustering (or CBP), give options to:
-  merge cells (average two waveforms, reducing num_waveforms)
-  split cells (specify new centroids graphically, increase num_waveforms)
-  add a new (orthogonalized) random waveform
 
 * AmplitudeThresholdGUI:
- - if general.plot_diagnostics is false,  just choose auto values
- - terminate with any mouse click to the window (instead of closing the window).
  - give timescales in msec, not samples
  - show total spike counts (and rate) for each cell. 
- - make cross-corr time bins  the width of the main lobe of the waveforms (0.5msec?)
-     ( for easy discernment of synchrony artifacts).
+ - add par for bin width - default 0.6msec ~ width of the main lobe of the waveforms
 
 * Refine the GUI for inspecting results.  Specifically, user should be able to view
   voltage traces and scroll/jump to "events", including found spikes, unusually low
@@ -49,18 +36,21 @@ INTERFACE/COSMETIC CHANGES:
   violations, cross-corr (synchrony) artifacts, or mis-matches between two sorters
   (or sorter and ground truth).
 
-* Display stats in ground truth comparison figures (preserved if we try
-  again with different params, increasing the starting figure number) ?
+* After running clustering (or CBP), give options to:
+  merge cells (average two waveforms, reducing num_waveforms)
+  split cells (specify new centroids graphically, increase num_waveforms)
+  add a new (orthogonalized) random waveform
 
 
 %% -----------------------------------------------------------------
 SMALL ALGORITHMIC CHANGES:
 
 * Data file should include a t0 (time of initial sample, in sec) and all times should
-  be relative to that!  This requires computing/correcting filtering lags.
+  be expressed/plotted relative to that.  This requires computing/correcting
+  filtering lags. Yuk.
 
-* filtering stage should also perform subsampling, if high freq limit is
-  significantly below Nyquist
+* filtering stage should also allow subsampling, if high freq limit is significantly
+  below Nyquist
 
 * filtering.pad doesn't need to be a parameter.  Left side should be
   padded by filtering.order, and right side needs order+waveform_len,
@@ -68,10 +58,10 @@ SMALL ALGORITHMIC CHANGES:
 
 * Use asymmetric window around peak for spike waveform, perhaps 3:1
 
-* Clustering: number of PC's should be set using a better statistical
-  criterion than percent_variance.  Specifically, we know what the
-  eigenvalues of a univariate Gaussian white noise ball should look like, so
-  should use only those that are significantly above that...
+* Clustering: number of PC's should be set using a better statistical criterion than
+  percent_variance.  Specifically, we know what the eigenvalues of a given number of
+  samples of univariate Gaussian white noise should look like, so should use only
+  those that are significantly above that...
 
 * Improve consistency of thresholding tests for spikes/noise: 
   - Filtering: globally rescales data so that max(abs) is 1.  Should rescale each
@@ -82,7 +72,7 @@ SMALL ALGORITHMIC CHANGES:
   - Clustering: originally used 4*std(CCN) to grab spike segments (??).  EPS changed
     to a constant value of 6, relative to noise stdev (=1).  Preferable: User should
     set a tolerable error rate (miss+fa), provide a prior on firing rates, and
-    theshold should be chosen using an SDT calculation:
+    theshold should be chosen using an SDT calculation!
       T= (log(1-pr)-log(pr) + a^2/2)/a, w/ pr=prob of spike in dt, a=spike amplitude
       eg: for error rate of 0.1%, with a prior of 1e-3, this is about 8.2
   - Partitioning (snippets): uses yet another threshold, and additionally relies on
@@ -90,13 +80,14 @@ SMALL ALGORITHMIC CHANGES:
      probably be again, an L2 norm over a few times bins, then combined in an Lp norm
      over channels.
 
-* ParitionSignal is not robust - breaks when threshold is too low.
-
-* Improve threshold determination after running CBP.  (1) Choose automatic thresholds
-  by fitting a mixture of gaussians to the recovered amplitudes.  (2) allow multiple
+* Improve threshold determination: (1) Choose automatic thresholds by fitting a
+  mixture of univariate Gaussians to the recovered amplitudes (currently uses
+  matlab's function, which chooses bandwidth automatically); (2) allow multiple
   thresholds, so that similar waveforms with different amplitudes are handled
   correctly - iterating on this will require the operator-slitting method mentioned
-  below, 
+  below,
+
+* re-estimate all waveforms simultaneously (currently computes STA on each individually).
 
 %% ----------------------------------------------------------------- 
 MAJOR ALGORITHM MODIFICATIONS:

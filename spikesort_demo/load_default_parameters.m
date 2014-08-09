@@ -78,7 +78,7 @@ cbp_outer.plot_every = 1;   % plotting frequency
 
 % Parameters for picking amplitude thresholds.
 amplitude.kdepoints = 32;
-amplitude.kderange = [0.3 1.1];
+amplitude.kderange = [0.3 1.0];
 amplitude.kdewidth = 5;
 
 % Acceptable slack for considering two spikes a match.  In units of samples.

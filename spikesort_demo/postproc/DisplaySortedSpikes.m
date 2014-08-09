@@ -1,4 +1,4 @@
-function DisplaySortedSpikes(data_pp, spike_times, init_waveforms, ...
+function DisplaySortedSpikes(data_pp, spike_times, spike_amps, init_waveforms, ...
                              snippets, recon_snippets, ...
                              params, name)
 
@@ -10,10 +10,12 @@ figure(params.plotting.first_fig_num); clf
 set(gcf, 'MenuBar', 'none', 'Name', name);
 subplot(2,1,1);  
 inds = params.plotting.dataPlotInds;
-plot((inds-1)*data_pp.dt, data_pp.data(:,inds)');
+plotChannelOffset = 6*ones(length(inds),1)*([1:nchan]-1); %**magic number
+plot((inds-1)*data_pp.dt, data_pp.data(:,inds)' + plotChannelOffset, 'k');
 axis tight
 yrg = get(gca,'Ylim');   xrg = get(gca,'Xlim');
-title('Data, filtered+whitened');
+title(sprintf('Data, filtered & whitened, nChannels=%d, %.1fkHz', nchan, 1/(1000*data_pp.dt)));
+
 subplot(2,1,2);
 bandHt = 0.12;
 yinc = bandHt*(yrg(2)-yrg(1))/length(init_waveforms);
@@ -22,25 +24,29 @@ patch([xrg'; xrg(2); xrg(1)], [yrg(2)*[1;1]; (yrg(1)+(1+bandHt)*(yrg(2)-yrg(1)))
       0.9*[1 1 1], 'EdgeColor', 0.9*[1 1 1]);
 set(gca,'Ylim', [yrg(1), yrg(2)+bandHt*(yrg(2)-yrg(1))]);
 hold on
-%** what amplitudes to use here?
 %** Should do proper interpolation
+midChan = ceil(nchan/2);
 for n=1:length(init_waveforms)
-    spkInds = spike_times{n}((spike_times{n} > inds(1)) & (spike_times{n} < inds(end)));
-    plot((spkInds-1)*data_pp.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(spkInds)), '.', 'Color', clrs(n,:));
-    trace = zeros(length(inds),nchan);   trace(round(spkInds)-inds(1)+1,:) = 1;
+    spkInds = (spike_times{n} > inds(1)) & (spike_times{n} < inds(end));
+    tInds = spike_times{n}(spkInds);
+    plot((tInds-1)*data_pp.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(tInds)), '.', 'Color', clrs(n,:));
+    trace = zeros(length(inds),nchan);   
+    trace(round(tInds)-inds(1)+1,midChan) = spike_amps{n}(spkInds)';
     trace = conv2(trace, reshape(init_waveforms{n},[],nchan), 'same');
-    plot((inds-1)*data_pp.dt, trace', 'Color', clrs(n,:));
-    plot((inds-1)*data_pp.dt, zeros(length(inds),1), 'k');
+    plot((inds-1)*data_pp.dt, trace + plotChannelOffset, 'Color', clrs(n,:));
+    plot((inds-1)*data_pp.dt, plotChannelOffset, 'k');
 end
 hold off
 xlabel('time (sec)');
 title('Recovered spikes');
 
-
-
-
 % Residual Histograms
+existingFig = ishghandle(params.plotting.first_fig_num+2);
 figure(params.plotting.first_fig_num+1); clf
+set(gcf, 'Name', 'Residual histograms');
+if (~existingFig) % only do this if we've created a new figure (avoid clobbering user changes)
+    set(gcf, 'ToolBar', 'none');
+end
 resid = cell2mat(cellfun(@(c,cr) c-cr, snippets, recon_snippets, 'UniformOutput', false));
 subplot(2,1,1); 
 %mx = max(cellfun(@(c) max(abs(c(:))), snippets));
@@ -97,7 +103,7 @@ if(0)
     snippet_ids = [snippet_ids; n*ones(length(distances), 1)];
   end
   
-  % need to fix display of snippets with two or more spikes...
+  %** need to fix display of snippets with two or more spikes...
   hold on
   for n=1:size(wfs,2) %plot central cluster first
     sn = proj_snippets(:, ((snippet_ids==n)&(snippet_dist2wf<thresh)));
