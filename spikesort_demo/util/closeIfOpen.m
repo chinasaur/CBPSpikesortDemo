@@ -1,3 +1,3 @@
 function closeIfOpen(fignums)
 
-close(find(ishghandle(fignums)));
+close(fignums(find(ishghandle(fignums))));

@@ -51,16 +51,17 @@ for i = 1:n
     
     % Plot spike amplitude histogram
     [H, X] = hist(spikeamps{i}, opts.ampbins);
-    hh = bar(X,H);  
+    hh = bar(X,H); set(hh,'FaceColor', cols(i,:), 'EdgeColor', cols(i,:));
     title(sprintf('Amplitudes, cell %d', i));
     xl = [0 max([spikeamps{i}(:); 1.5])];
     xlim(xl);
-    
+
     if (~isempty(opts.wfnorms))
         X = linspace(0,xl(2),opts.ampbins);
         hold on
-        plot(X, max(H)*exp(-(X.^2)/(2/opts.wfnorms(i).^2)), 'Color', 0.6*[1 1 1]);
-        %        plot(X, max(H)*exp(-((X-1).^2)/(2/opts.wfnorms(i).^2)), 'Color', cols(i,:));
+        plot(X, max(H)*exp(-((X*opts.wfnorms(i)).^2)/2), 'Color', 0.35*[1 1 1]);
+        %        plot(X, max(H)*exp(-(((X-1)*opts.wfnorms(i)).^2)/2), 'Color', cols(i,:));
+
         hold off
     end
 
@@ -71,7 +72,7 @@ for i = 1:n
         xl = get(gca, 'XLim');
         cnstrfcn = makeConstrainToRectFcn('imline', xl, yl);
         lh = imline(gca, initthresh(i)*[1 1], yl, 'PositionConstraintFcn', cnstrfcn);
-        lh.setColor(cols(i,:));
+        lh.setColor('black');
         lch = get(lh, 'Children');
         set(lch(1:2), 'HitTest', 'off');
         lh.addNewPositionCallback(@(pos) updateThresh(pos(1), i, f));
@@ -94,7 +95,7 @@ end
 % Report on performance relative to ground truth if available
 showGroundTruthEval(threshspiketimes, f);
 
-ax  = subplot(n+1, n, n+1);
+ax  = subplot(n+1, n, sub2ind([n n+1], 1, n+1));
 set(ax, 'Visible', 'off');
 pos = get(ax, 'Position');
 ht = pos(4);
@@ -159,8 +160,7 @@ threshsts{i} = sts{i}(amps{i} > newthresh);
 % Plot
 plotACorr(threshsts, i);
 n = length(threshsts);
-for j = 1:n
-    if j == i, continue; end
+for j = (i+1):n
     plotXCorr(threshsts, i, j);
 end
 
@@ -176,10 +176,11 @@ return
 % -----------------
 function plotACorr(spiketimes, i)
 n = length(spiketimes);
-subplot(n+1, n, sub2ind([n n+1], i, n+1));
+subplot(n+1, n, sub2ind([n n+1], i, 2));
 cla;
 psthacorr(spiketimes{i})
 title(sprintf('Autocorr, cell %d', i));
+if (i==1), xlabel('time (sec)'); end
 return
 
 % -----------------
@@ -189,10 +190,10 @@ if j < i
     i = j;
     j = tmp;
 end
-
 n = length(spiketimes);
-subplot(n+1, n, sub2ind([n n+1], j, i+1));
+subplot(n+1, n, sub2ind([n n+1], j, i+2));
 cla;
 psthxcorr(spiketimes{i}, spiketimes{j})
 title(sprintf('Xcorr, cells %d, %d', i, j));
+if ((i==1) & (j==2)), xlabel('time (sec)'); end
 return

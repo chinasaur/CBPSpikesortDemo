@@ -194,14 +194,15 @@ if (params.general.plot_diagnostics)
 end
 
 % Fig7 allows interactive adjustment of waveform amplitudes, while visualizing effect
-% on ACorr/XCorr.  Top row shows amplitude distribution (typical spikes should have
-% amplitude 1), with thresholds indicated by red lines.  These can be dragged right
-% or left.  Bottom row shows spike train autocorrelation that would result from
-% chosen threshold, and can be examined for refractory violations.  Middle rows show
-% spike train cross-correlations across pairs of cells, and can be examined for
-% dropped synchronous spikes (very common with clustering methods).  Click the
-% "Use waveforms" button to proceed with adjusted values.  Click the "Revert"
-% button to revert to the automatically-chosen default values.
+% on spike train auto- and cross-correlations.  Top row shows amplitude distribution
+% (typical spikes should have amplitude 1), with expected (Gaussian) noise
+% distribution at left, and thresholds indicated by vertical lines.  Threshold lines
+% can be mouse-dragged right or left.  Next row shows spike train autocorrelation
+% that would result from chosen threshold, and can be examined for refractory
+% violations.  Bottom rows show spike train cross-correlations across pairs of cells,
+% and can be examined for dropped synchronous spikes (very common with clustering
+% methods).  Click the "Use thresholds" button to proceed with the chosen values.
+% Click the "Revert" button to revert to the automatically-chosen default values.
 
 %% ----------------------------------------------------------------------------------
 % CBP Step 3: Re-estimate waveforms
